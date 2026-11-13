@@ -168,10 +168,121 @@ test('warns about overlapping clips on one track', () => {
   if (result.ok) expect(result.warnings.map((w) => w.message).join()).toMatch(/overlap/);
 });
 
-test('migrates version 1 documents to version 2', () => {
+test('migrates version 1 documents to the current version', () => {
   const result = validateCourse(minimalCourse());
   expect(result.ok).toBe(true);
-  if (result.ok) expect(result.course.formatVersion).toBe(2);
+  if (result.ok) expect(result.course.formatVersion).toBe(3);
+});
+
+describe('questions (v3)', () => {
+  const withQuestions = () => {
+    const doc = minimalCourse() as AnyObj;
+    doc.assessment = { passingScore: 80 };
+    doc.chapters[0].tracks.push({
+      id: 'tq',
+      clips: [
+        {
+          id: 'qc',
+          type: 'question',
+          start: 0,
+          duration: 2000,
+          frame: { x: 0, y: 0, width: 800, height: 600 },
+          question: {
+            id: 'q1',
+            kind: 'single',
+            prompt: 'Which?',
+            choices: [
+              { id: 'a', text: 'A' },
+              { id: 'b', text: 'B' },
+            ],
+            correct: 'b',
+            attempts: 2,
+            feedback: { correct: 'Yes', incorrect: 'No' },
+          },
+        },
+      ],
+    });
+    doc.chapters.push({
+      id: 'test',
+      title: 'Test',
+      duration: 1000,
+      transition: { mode: 'wait' },
+      tracks: [],
+      quiz: {
+        shuffle: true,
+        retries: 1,
+        questions: [
+          {
+            id: 'q2',
+            kind: 'multiple',
+            prompt: 'Pick',
+            choices: [
+              { id: 'x', text: 'X' },
+              { id: 'y', text: 'Y' },
+            ],
+            correct: ['x', 'y'],
+          },
+          { id: 'q3', kind: 'text', prompt: 'Capital?', answers: ['Bern'] },
+          {
+            id: 'q4',
+            kind: 'order',
+            prompt: 'Order',
+            items: [
+              { id: 'i1', text: '1' },
+              { id: 'i2', text: '2' },
+            ],
+          },
+          {
+            id: 'q5',
+            kind: 'match',
+            prompt: 'Match',
+            pairs: [
+              { id: 'p1', left: 'a', right: 'b' },
+              { id: 'p2', left: 'c', right: 'd' },
+            ],
+          },
+          {
+            id: 'q6',
+            kind: 'hotspot',
+            prompt: 'Where?',
+            assetId: 'img',
+            areas: [{ id: 'h1', label: 'Top', x: 0, y: 0, width: 0.5, height: 0.5 }],
+            correct: ['h1'],
+          },
+        ],
+      },
+    });
+    return doc;
+  };
+
+  test('accepts all question kinds, quiz chapters and an assessment', () => {
+    const result = validateCourse(withQuestions());
+    if (!result.ok) throw new Error(JSON.stringify(result.issues));
+  });
+
+  test('rejects broken answers and duplicate question ids', () => {
+    const doc = withQuestions();
+    doc.chapters[0].tracks[1].clips[0].question.correct = 'zzz';
+    doc.chapters[1].quiz.questions[1].id = 'q2';
+    doc.chapters[1].quiz.questions[4].assetId = 'vid';
+    const result = validateCourse(doc);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      const messages = result.issues.map((i) => i.message).join('\n');
+      expect(messages).toMatch(/unknown choice "zzz"/);
+      expect(messages).toMatch(/Duplicate question id "q2"/);
+      expect(messages).toMatch(/has kind "video", expected image/);
+    }
+  });
+
+  test('rejects a single choice question with one option and a passing score above 100', () => {
+    const doc = withQuestions();
+    doc.chapters[0].tracks[1].clips[0].question.choices.pop();
+    expect(validateCourse(doc).ok).toBe(false);
+    const doc2 = withQuestions();
+    doc2.assessment.passingScore = 120;
+    expect(validateCourse(doc2).ok).toBe(false);
+  });
 });
 
 test('validates markers and the new clip types', () => {
