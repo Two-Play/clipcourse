@@ -1,5 +1,8 @@
 # Testing with a real LMS
 
+Verified so far: **Moodle 5.3.1** and **ILIAS 10.12**, SCORM 1.2 and 2004
+each: launch, media, resume, completion.
+
 ## Moodle (automated)
 
 Requirements: Podman or Docker, about 2 GB disk space.
@@ -31,14 +34,33 @@ For both SCORM 1.2 and 2004, each test does the following:
 Stop Moodle with `scripts/lms/moodle-up.sh down`; the data stays in `.lms/`.
 To start over, also delete `.lms/`.
 
-These tests are not part of CI, because they need a running Moodle.
+These tests are not part of CI, because they need a running LMS.
 
-## ILIAS
+## ILIAS (automated)
 
-Not automated yet: there is no official ILIAS container image. To test
-manually, install ILIAS (for example with your organisation's test
-instance), create a "SCORM/AICC learning module" from an exported package
-and check launch, resume and learning progress.
+```bash
+scripts/lms/ilias-up.sh
+```
+
+This starts ILIAS 10 on <http://localhost:8082>. There is no official ILIAS
+container image, so the script uses the community image
+[`srsolutions/ilias`](https://github.com/srsolutionsag/docker-ilias) from
+sr solutions, an ILIAS service provider. The database uses `utf8`, not
+`utf8mb4`, because the ILIAS database dump exceeds InnoDB's row size
+otherwise. Credentials go to `.lms/ilias.env`.
+
+```bash
+set -a; source .lms/ilias.env; set +a
+pnpm --filter @clipcourse/editor test:lms
+```
+
+The ILIAS tests create a "Learning Module SCORM" for each version, then
+launch, resume and complete it. They check the status in the module's
+_Tracking Data → Basic report for chapters (SCO)_. Stop ILIAS with
+`scripts/lms/ilias-up.sh down`.
+
+Both test suites skip themselves when their URL variable is not set, so
+`source` one or both credential files.
 
 ## SCORM Cloud
 

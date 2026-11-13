@@ -18,7 +18,7 @@ your LMS. In the editor, click **Export SCORM…** and pick a version.
 | Bookmark (current chapter)    | `cmi.core.lesson_location` (chapter id)                                                       | `cmi.location` (chapter id)                  |
 | Resume data                   | `cmi.suspend_data` (chapter, position, seen chapters; < 100 characters even for 200 chapters) | same                                         |
 | Time spent                    | `cmi.core.session_time`                                                                       | `cmi.session_time`                           |
-| Exit                          | `cmi.core.exit = suspend`                                                                     | `cmi.exit = suspend`                         |
+| Exit                          | `cmi.core.exit = suspend` (set at start, so it survives a lost final call)                    | `cmi.exit = suspend`                         |
 
 A chapter counts as seen when its timeline has played to the end. Seeking
 to the end does not count. The course is completed when all chapters have
@@ -51,10 +51,10 @@ reports, set _Activity completion_ to "Students must… receive a status"
 "Learning objects". The _Highest grade_ method shows 0, because the course
 reports no score.
 
-**ILIAS:** upload it as a "SCORM/AICC learning module". Completion
-should appear in the learning progress if it is set to "Status of the SCORM
-items". This has not been verified with a real ILIAS yet, see
-[lms-testing.md](lms-testing.md).
+**ILIAS:** _Add New Object → Learning Module SCORM_, choose the version and
+upload the package. ILIAS takes the title from the manifest. The learner's
+status is under _Tracking Data_. For it to count in the learning progress,
+set the learning progress mode to "Status of the SCORM items".
 
 ## Testing
 
@@ -63,5 +63,6 @@ items". This has not been verified with a real ILIAS yet, see
   suspend data. _Close and relaunch_ checks resuming.
 - **Automated (CI):** the editor e2e tests export packages and run them in an
   LMS-like frame with a simulated API, for both versions.
-- **Real Moodle (local):** see [lms-testing.md](lms-testing.md). Verified
-  with Moodle 5.3.1 for both versions: launch, media, resume, completion.
+- **Real LMS (local):** see [lms-testing.md](lms-testing.md). Verified with
+  Moodle 5.3.1 and ILIAS 10.12 for both versions: launch, media, resume,
+  completion.
