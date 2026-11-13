@@ -6,8 +6,9 @@ clips. Text, images, shapes, boxes and optional video or audio clips appear
 and disappear at exact times. The timeline itself is the beat, so you don't
 need a video or audio track.
 
-> **Status:** early development. Milestone 1 (course format and player) is
-> done. The editor and the SCORM export are still in progress.
+> **Status:** early development. Milestones 1 (course format and player) and
+> 2 (timeline editor) are done. Chapter management, animations and the SCORM
+> export are still in progress.
 
 ## Features
 
@@ -19,7 +20,7 @@ need a video or audio track.
 | Course layer: elements shown in every chapter                                           | ✅ M1  |
 | Progress: bookmark and seen chapters, compact enough for SCORM 1.2                      | ✅ M1  |
 | Accessibility: keyboard control, WebVTT captions, alt text, screen reader announcements | ✅ M1  |
-| Timeline editor (tracks, clips, playhead, drag/resize, undo/redo)                       | M2     |
+| Timeline editor: tracks, clips, playhead, drag/trim with snapping, undo/redo            | ✅ M2  |
 | Chapter management, animations, highlights, table of contents                           | M3     |
 | SCORM 1.2 and 2004 export                                                               | M4     |
 | Desktop app (Tauri), documentation                                                      | M5     |
@@ -27,10 +28,12 @@ need a video or audio track.
 ## Repository layout
 
 ```
-packages/format   MIT    Course format: types, JSON schema, validation, migrations
-packages/player   MIT    Player runtime that ships inside every exported course
-apps/player-demo  MIT    Development harness that plays the example courses
-examples/         CC0    Example courses
+packages/format       MIT    Course format: types, JSON schema, validation, migrations
+packages/player       MIT    Player runtime that ships inside every exported course
+packages/editor-core  AGPL   Editor model: commands, undo/redo, snapping, project files
+apps/editor           AGPL   The editor (React)
+apps/player-demo      MIT    Development harness that plays the example courses
+examples/             CC0    Example courses
 ```
 
 ## Try it
@@ -39,12 +42,38 @@ Requirements: Node.js 22 or newer and pnpm 10.
 
 ```bash
 pnpm install
-pnpm --filter @clipcourse/player-demo dev
+pnpm --filter @clipcourse/editor dev        # editor on http://localhost:4318
+pnpm --filter @clipcourse/player-demo dev   # player demo on http://localhost:4317
 ```
 
-Open http://localhost:4317. The demo plays [`examples/welcome`](examples/welcome).
+In the editor, click **Open example** to load [`examples/welcome`](examples/welcome),
+or start with **＋ Text**. Projects are saved as `.zip` files (`course.json`
+plus an `assets/` folder). Your working copy is kept in the browser and
+restored on the next start.
 
-### Player keyboard shortcuts
+### Editor basics
+
+- Add text, boxes and shapes with the toolbar; import images, video, audio and
+  `.vtt` captions and drag them onto a track.
+- Drag clips to move them (also to other tracks), drag their edges to trim.
+  Clips snap to the playhead, clip edges and the chapter bounds; hold Alt to
+  disable snapping. Escape cancels a drag.
+- Drag the striped chapter end to change the chapter length.
+- Select a clip on the stage to move it or resize it with the corner handles.
+- **Preview** plays the course in the real player.
+
+| Key                   | Action                                 |
+| --------------------- | -------------------------------------- |
+| Space                 | Play or pause                          |
+| Delete                | Remove selected clips                  |
+| Ctrl+Z / Ctrl+Shift+Z | Undo / redo                            |
+| S                     | Split selected clips at the playhead   |
+| Ctrl+D                | Duplicate                              |
+| ← / → (Shift: 1 s)    | Move the playhead, or a focused clip   |
+| Alt+← / Alt+→         | Trim the end of a focused clip         |
+| Arrow keys on stage   | Nudge the selected clip (Shift: 10 px) |
+
+### Player shortcuts
 
 | Key       | Action                                                 |
 | --------- | ------------------------------------------------------ |
