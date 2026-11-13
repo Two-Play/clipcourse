@@ -19,7 +19,12 @@ const course: Course = {
     title: id.toUpperCase(),
     duration: 1000,
     transition: { mode: 'auto' as const },
-    tracks: [{ id: `${id}_t`, clips: [{ id: `${id}_c`, type: 'box' as const, start: 0, duration: 1000, frame }] }],
+    tracks: [
+      {
+        id: `${id}_t`,
+        clips: [{ id: `${id}_c`, type: 'box' as const, start: 0, duration: 1000, frame }],
+      },
+    ],
   })),
 };
 
@@ -35,7 +40,11 @@ function launch(api: Record<string, unknown>, version: '1.2' | '2004') {
   document.body.append(host);
   const fakeWindow = Object.assign(window, api);
   const clock = createManualClock();
-  running = runCourse(host, course, { scormVersion: version, window: fakeWindow, player: { clock } });
+  running = runCourse(host, course, {
+    scormVersion: version,
+    window: fakeWindow,
+    player: { clock },
+  });
   return clock;
 }
 

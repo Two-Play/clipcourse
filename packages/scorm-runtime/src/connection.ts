@@ -101,10 +101,12 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
   const get = (element: string) => {
     const value = calls.get(element);
     const code = calls.lastError();
-    if (code && code !== '0' && code !== '403') diagnostics.push(`GetValue(${element}): error ${code}`);
+    if (code && code !== '0' && code !== '403')
+      diagnostics.push(`GetValue(${element}): error ${code}`);
     return value;
   };
-  const set = (element: string, value: string) => check(`SetValue(${element})`, calls.set(element, value));
+  const set = (element: string, value: string) =>
+    check(`SetValue(${element})`, calls.set(element, value));
 
   if (!check('Initialize', calls.init())) return null;
 
@@ -115,7 +117,10 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
   let active = true;
 
   // Mark the attempt as started.
-  if (!completed && (status === '' || status === 'not attempted' || status === 'unknown' || status === 'browsed')) {
+  if (
+    !completed &&
+    (status === '' || status === 'not attempted' || status === 'unknown' || status === 'browsed')
+  ) {
     set(el.status, 'incomplete');
   }
 
@@ -153,7 +158,10 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
     terminate() {
       if (!active) return;
       const seconds = (now() - startedAt) / 1000;
-      set(el.sessionTime, version === '1.2' ? formatScorm12Time(seconds) : formatIsoDuration(seconds));
+      set(
+        el.sessionTime,
+        version === '1.2' ? formatScorm12Time(seconds) : formatIsoDuration(seconds),
+      );
       // "suspend" keeps the bookmark for the next launch.
       set(el.exit, 'suspend');
       check('Commit', calls.commit());

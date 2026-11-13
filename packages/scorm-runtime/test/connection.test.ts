@@ -5,7 +5,8 @@ import { connect } from '../src/connection.js';
 import { createLmsRecord, createMockLms, createMockScorm12 } from '../src/testing.js';
 
 const versions: ScormVersion[] = ['1.2', '2004'];
-const statusKey = (v: ScormVersion) => (v === '1.2' ? 'cmi.core.lesson_status' : 'cmi.completion_status');
+const statusKey = (v: ScormVersion) =>
+  v === '1.2' ? 'cmi.core.lesson_status' : 'cmi.completion_status';
 
 describe.each(versions)('SCORM %s adapter', (version) => {
   const open = (record = createLmsRecord(), now = () => 0) => {

@@ -13,7 +13,7 @@ import {
   type PlayerOptions,
   type ProgressStore,
 } from '@clipcourse/player';
-import { findApi, type ScormVersion, type WindowLike } from './api.js';
+import { findApi, type FoundApi, type ScormVersion, type WindowLike } from './api.js';
 import { connect, type LmsConnection } from './connection.js';
 
 /** Commit at most this often while playing, ms. Chapter ends and completion commit at once. */
@@ -24,6 +24,8 @@ export interface RunCourseOptions {
   scormVersion?: ScormVersion | 'auto';
   /** Window to start the API search from (default: this window). */
   window?: WindowLike & Window;
+  /** Use this API instead of searching for one (e.g. a simulated LMS). */
+  api?: FoundApi | null;
   /** Extra player options (strings, captions, …). */
   player?: Omit<PlayerOptions, 'progressStore'>;
   now?: () => number;
@@ -35,6 +37,8 @@ export interface RunningCourse {
   lms: LmsConnection | null;
   /** Saves, commits and ends the LMS session. */
   finish(): void;
+  /** Finishes the session and removes the player. */
+  destroy(): void;
 }
 
 /** Progress store that writes the bookmark through the LMS connection. */
@@ -70,12 +74,18 @@ export function createLmsStore(
   };
 }
 
-export function runCourse(container: HTMLElement, course: Course, options: RunCourseOptions = {}): RunningCourse {
+export function runCourse(
+  container: HTMLElement,
+  course: Course,
+  options: RunCourseOptions = {},
+): RunningCourse {
   const win = options.window ?? window;
   const now = options.now ?? Date.now;
-  const found = findApi(win, options.scormVersion ?? 'auto');
+  const found =
+    options.api !== undefined ? options.api : findApi(win, options.scormVersion ?? 'auto');
   const lms = found ? connect(found, now) : null;
-  if (found && !lms) console.warn('[clipcourse] The LMS did not initialize; progress is stored locally.');
+  if (found && !lms)
+    console.warn('[clipcourse] The LMS did not initialize; progress is stored locally.');
 
   const lmsStore = lms ? createLmsStore(lms, course, now) : null;
   const store = lmsStore ?? createLocalStorageStore(`clipcourse:${course.id}`);
@@ -106,5 +116,15 @@ export function runCourse(container: HTMLElement, course: Course, options: RunCo
   win.addEventListener('pagehide', finish);
   win.addEventListener('beforeunload', finish);
 
-  return { player, lms, finish };
+  return {
+    player,
+    lms,
+    finish,
+    destroy() {
+      finish();
+      win.removeEventListener('pagehide', finish);
+      win.removeEventListener('beforeunload', finish);
+      player.destroy();
+    },
+  };
 }

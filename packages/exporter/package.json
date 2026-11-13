@@ -1,0 +1,21 @@
+{
+  "name": "@clipcourse/exporter",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clipcourse exporter: builds SCORM 1.2 and 2004 packages",
+  "author": "Philippe",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@clipcourse/editor-core": "workspace:*",
+    "@clipcourse/format": "workspace:*",
+    "fflate": "0.8.3"
+  }
+}

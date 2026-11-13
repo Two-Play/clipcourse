@@ -58,7 +58,10 @@ const SPECS: Record<ScormVersion, Spec> = {
     readOnly: ['cmi.core.entry', 'cmi.core.student_id', 'cmi.core.student_name', 'cmi.core.credit'],
     writeOnly: ['cmi.core.exit', 'cmi.core.session_time'],
     limits: { 'cmi.suspend_data': 4096, 'cmi.core.lesson_location': 255 },
-    vocab: { 'cmi.core.lesson_status': VOCAB_12, 'cmi.core.exit': ['time-out', 'suspend', 'logout', ''] },
+    vocab: {
+      'cmi.core.lesson_status': VOCAB_12,
+      'cmi.core.exit': ['time-out', 'suspend', 'logout', ''],
+    },
     status: 'cmi.core.lesson_status',
     entry: 'cmi.core.entry',
     exit: 'cmi.core.exit',
@@ -71,13 +74,23 @@ const SPECS: Record<ScormVersion, Spec> = {
       '404': 'Element is write only',
       '405': 'Incorrect data type',
     },
-    codes: { notInitialized: '301', afterTerminate: '301', readOnly: '403', writeOnly: '404', badValue: '405', unknown: '201' },
+    codes: {
+      notInitialized: '301',
+      afterTerminate: '301',
+      readOnly: '403',
+      writeOnly: '404',
+      badValue: '405',
+      unknown: '201',
+    },
   },
   '2004': {
     readOnly: ['cmi.entry', 'cmi.learner_id', 'cmi.learner_name', 'cmi.credit', 'cmi.mode'],
     writeOnly: ['cmi.exit', 'cmi.session_time'],
     limits: { 'cmi.suspend_data': 64000, 'cmi.location': 1000 },
-    vocab: { 'cmi.completion_status': VOCAB_2004, 'cmi.exit': ['time-out', 'suspend', 'logout', 'normal', ''] },
+    vocab: {
+      'cmi.completion_status': VOCAB_2004,
+      'cmi.exit': ['time-out', 'suspend', 'logout', 'normal', ''],
+    },
     status: 'cmi.completion_status',
     entry: 'cmi.entry',
     exit: 'cmi.exit',
@@ -94,13 +107,33 @@ const SPECS: Record<ScormVersion, Spec> = {
       '406': 'Data model element type mismatch',
       '407': 'Data model element value out of range',
     },
-    codes: { notInitialized: '122', afterTerminate: '123', readOnly: '404', writeOnly: '405', badValue: '406', unknown: '401' },
+    codes: {
+      notInitialized: '122',
+      afterTerminate: '123',
+      readOnly: '404',
+      writeOnly: '405',
+      badValue: '406',
+      unknown: '401',
+    },
   },
 };
 
-const KNOWN_PREFIXES = ['cmi.core.', 'cmi.suspend_data', 'cmi.location', 'cmi.completion_status', 'cmi.success_status',
-  'cmi.progress_measure', 'cmi.entry', 'cmi.exit', 'cmi.session_time', 'cmi.learner_', 'cmi.credit', 'cmi.mode',
-  'cmi.score', 'cmi.launch_data'];
+const KNOWN_PREFIXES = [
+  'cmi.core.',
+  'cmi.suspend_data',
+  'cmi.location',
+  'cmi.completion_status',
+  'cmi.success_status',
+  'cmi.progress_measure',
+  'cmi.entry',
+  'cmi.exit',
+  'cmi.session_time',
+  'cmi.learner_',
+  'cmi.credit',
+  'cmi.mode',
+  'cmi.score',
+  'cmi.launch_data',
+];
 
 /** Creates a fresh, empty LMS record (first launch). */
 export function createLmsRecord(): LmsRecord {
@@ -129,8 +162,14 @@ function createCore(version: ScormVersion, record: LmsRecord) {
     lastError = '0';
     record.launches++;
     const resume = record.data[spec.exit] === 'suspend';
-    values = resume ? { ...record.data } : { 'cmi.suspend_data': '', [spec.status]: version === '1.2' ? 'not attempted' : 'unknown' };
-    if (!resume && record.data[spec.status] && ['completed', 'passed'].includes(record.data[spec.status]!)) {
+    values = resume
+      ? { ...record.data }
+      : { 'cmi.suspend_data': '', [spec.status]: version === '1.2' ? 'not attempted' : 'unknown' };
+    if (
+      !resume &&
+      record.data[spec.status] &&
+      ['completed', 'passed'].includes(record.data[spec.status]!)
+    ) {
       values[spec.status] = record.data[spec.status]!;
     }
     values[spec.entry] = resume ? 'resume' : 'ab-initio';
@@ -139,7 +178,11 @@ function createCore(version: ScormVersion, record: LmsRecord) {
   };
 
   const getValue = (element: string) => {
-    if (state !== 'running') return (fail(state === 'terminated' ? spec.codes.afterTerminate : spec.codes.notInitialized), '');
+    if (state !== 'running')
+      return (
+        fail(state === 'terminated' ? spec.codes.afterTerminate : spec.codes.notInitialized),
+        ''
+      );
     if (spec.writeOnly.includes(element)) return (fail(spec.codes.writeOnly), '');
     if (!KNOWN_PREFIXES.some((p) => element.startsWith(p))) return (fail(spec.codes.unknown), '');
     lastError = '0';
@@ -152,7 +195,8 @@ function createCore(version: ScormVersion, record: LmsRecord) {
       return 'false';
     }
     if (spec.readOnly.includes(element)) return (fail(spec.codes.readOnly), 'false');
-    if (!KNOWN_PREFIXES.some((p) => element.startsWith(p))) return (fail(spec.codes.unknown), 'false');
+    if (!KNOWN_PREFIXES.some((p) => element.startsWith(p)))
+      return (fail(spec.codes.unknown), 'false');
     const limit = spec.limits[element];
     if (limit !== undefined && value.length > limit) return (fail(spec.codes.badValue), 'false');
     const vocab = spec.vocab[element];

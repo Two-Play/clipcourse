@@ -59,7 +59,10 @@ function readApi(win: WindowLike, preferred: ScormVersion | 'auto'): FoundApi | 
   return null;
 }
 
-function searchChain(start: WindowLike | null | undefined, preferred: ScormVersion | 'auto'): FoundApi | null {
+function searchChain(
+  start: WindowLike | null | undefined,
+  preferred: ScormVersion | 'auto',
+): FoundApi | null {
   let win = start;
   for (let depth = 0; win && depth < MAX_DEPTH; depth++) {
     const found = readApi(win, preferred);
@@ -80,7 +83,10 @@ function searchChain(start: WindowLike | null | undefined, preferred: ScormVersi
  * Finds the LMS API. With `preferred` set to a version, only that version is
  * accepted (the exported package declares its version in the manifest).
  */
-export function findApi(win: WindowLike, preferred: ScormVersion | 'auto' = 'auto'): FoundApi | null {
+export function findApi(
+  win: WindowLike,
+  preferred: ScormVersion | 'auto' = 'auto',
+): FoundApi | null {
   const own = searchChain(win, preferred);
   if (own) return own;
   let opener: WindowLike | null | undefined;

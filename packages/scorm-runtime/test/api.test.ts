@@ -18,7 +18,10 @@ describe('findApi', () => {
   });
 
   test('prefers 2004 when both exist, unless 1.2 is required', () => {
-    const top: WindowLike = { API: createMockScorm12().api, API_1484_11: createMockScorm2004().api };
+    const top: WindowLike = {
+      API: createMockScorm12().api,
+      API_1484_11: createMockScorm2004().api,
+    };
     expect(findApi(top)?.version).toBe('2004');
     expect(findApi(top, '1.2')?.version).toBe('1.2');
   });
