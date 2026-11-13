@@ -134,3 +134,36 @@ describe('Controller', () => {
     expect(listener).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('restoring at the end of a chapter', () => {
+  test('waits for Continue instead of replaying', () => {
+    const c = new Controller(threeChapters(), {
+      chapterIndex: 0,
+      time: 1000,
+      seen: [true, false, false],
+    });
+    expect(c.state.status).toBe('waiting');
+    c.play();
+    expect(c.state).toMatchObject({ chapterIndex: 1, time: 0, status: 'playing' });
+  });
+
+  test('is ended at the end of the last chapter', () => {
+    const c = new Controller(threeChapters(), {
+      chapterIndex: 2,
+      time: 1000,
+      seen: [true, true, true],
+    });
+    expect(c.state.status).toBe('ended');
+  });
+
+  test('an unseen chapter at its end replays (it was seeked there, not watched)', () => {
+    const c = new Controller(threeChapters(), {
+      chapterIndex: 0,
+      time: 1000,
+      seen: [false, false, false],
+    });
+    expect(c.state.status).toBe('paused');
+    c.play();
+    expect(c.state).toMatchObject({ chapterIndex: 0, time: 0 });
+  });
+});
