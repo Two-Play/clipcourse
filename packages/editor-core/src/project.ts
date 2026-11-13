@@ -74,7 +74,13 @@ export function sanitizeFileName(name: string): string {
   const base = name.split(/[\\/]/).pop() ?? 'file';
   const dot = base.lastIndexOf('.');
   const stem = dot > 0 ? base.slice(0, dot) : base;
-  const ext = dot > 0 ? base.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, '') : '';
+  const ext =
+    dot > 0
+      ? base
+          .slice(dot + 1)
+          .toLowerCase()
+          .replace(/[^a-z0-9]/g, '')
+      : '';
   const cleanStem =
     stem
       .replace(/ß/g, 'ss')
@@ -89,7 +95,9 @@ export function sanitizeFileName(name: string): string {
 
 /** Turns any name into a valid asset id. */
 export function assetIdFromName(name: string, taken: ReadonlySet<string>): string {
-  const stem = sanitizeFileName(name).replace(/\.[^.]*$/, '').replace(/-/g, '_');
+  const stem = sanitizeFileName(name)
+    .replace(/\.[^.]*$/, '')
+    .replace(/-/g, '_');
   const base = /^[a-z_]/.test(stem) ? stem : `asset_${stem}`;
   let id = base.slice(0, 100);
   for (let i = 2; taken.has(id); i++) id = `${base.slice(0, 96)}_${i}`;
@@ -120,7 +128,10 @@ export function prepareAsset(
   const dot = clean.lastIndexOf('.');
   const stem = dot > 0 ? clean.slice(0, dot) : clean;
   const ext = dot > 0 ? clean.slice(dot) : '';
-  const usedPaths = new Set([...project.files.keys(), ...Object.values(project.course.assets).map((a) => a.src)]);
+  const usedPaths = new Set([
+    ...project.files.keys(),
+    ...Object.values(project.course.assets).map((a) => a.src),
+  ]);
   let path = `${ASSET_DIR}/${clean}`;
   for (let i = 2; usedPaths.has(path); i++) path = `${ASSET_DIR}/${stem}-${i}${ext}`;
   const assetId = assetIdFromName(fileName, new Set(Object.keys(project.course.assets)));

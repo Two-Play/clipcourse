@@ -56,12 +56,15 @@ export const setCourseProps =
 export const setChapterProps =
   (
     chapterId: string,
-    props: Partial<Pick<Chapter, 'title' | 'duration' | 'transition'>> & { background?: string | null },
+    props: Partial<Pick<Chapter, 'title' | 'duration' | 'transition'>> & {
+      background?: string | null;
+    },
   ): Recipe =>
   (draft) => {
     const chapter = getChapter(draft, chapterId);
     if (props.title !== undefined) chapter.title = props.title;
-    if (props.duration !== undefined) chapter.duration = Math.max(MIN_CLIP_DURATION, Math.round(props.duration));
+    if (props.duration !== undefined)
+      chapter.duration = Math.max(MIN_CLIP_DURATION, Math.round(props.duration));
     if (props.transition !== undefined) chapter.transition = props.transition;
     if (props.background === null) delete chapter.background;
     else if (props.background !== undefined) chapter.background = props.background;
@@ -83,7 +86,10 @@ export const addTrack =
     const chapter = getChapter(draft, chapterId);
     const newTrack: Track = { id: track.id, clips: [] };
     if (track.name !== undefined) newTrack.name = track.name;
-    const at = index === undefined ? chapter.tracks.length : Math.max(0, Math.min(index, chapter.tracks.length));
+    const at =
+      index === undefined
+        ? chapter.tracks.length
+        : Math.max(0, Math.min(index, chapter.tracks.length));
     chapter.tracks.splice(at, 0, newTrack);
   };
 
@@ -148,7 +154,8 @@ export const moveClip =
   (draft) => {
     const from = requireClip(draft, clipId);
     const target = trackId ? requireTrack(draft, trackId) : from;
-    if (target.chapterIndex !== from.chapterIndex) throw new Error('Clips can only move within a chapter');
+    if (target.chapterIndex !== from.chapterIndex)
+      throw new Error('Clips can only move within a chapter');
     const clip = from.track.clips[from.clipIndex]!;
     const resolved = nearestFreeStart(target.track, start, clip.duration, new Set([clipId]));
     from.track.clips.splice(from.clipIndex, 1);
@@ -198,7 +205,8 @@ export const updateClip =
     const clip = track.clips[clipIndex]!;
     const { id, type } = clip;
     update(clip);
-    if (clip.id !== id || clip.type !== type) throw new Error('updateClip must not change id or type');
+    if (clip.id !== id || clip.type !== type)
+      throw new Error('updateClip must not change id or type');
     clip.start = Math.max(0, Math.round(clip.start));
     clip.duration = Math.max(MIN_CLIP_DURATION, Math.round(clip.duration));
     sortClips(track);

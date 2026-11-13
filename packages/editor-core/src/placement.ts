@@ -31,7 +31,12 @@ export function freeGaps(track: Track, ignore: ReadonlySet<string> = new Set()):
   return gaps;
 }
 
-export function fits(track: Track, start: number, duration: number, ignore?: ReadonlySet<string>): boolean {
+export function fits(
+  track: Track,
+  start: number,
+  duration: number,
+  ignore?: ReadonlySet<string>,
+): boolean {
   if (start < 0) return false;
   const end = start + duration;
   return occupied(track, ignore).every((b) => end <= b.start || start >= b.end);
@@ -66,7 +71,11 @@ export function nearestFreeStart(
  * Limits for resizing one edge of a clip so it does not run into its
  * neighbours (or below 0 / below the minimum duration).
  */
-export function resizeLimits(track: Track, clip: Clip, minDuration: number): { minStart: number; maxEnd: number } {
+export function resizeLimits(
+  track: Track,
+  clip: Clip,
+  minDuration: number,
+): { minStart: number; maxEnd: number } {
   let minStart = 0;
   let maxEnd = Number.POSITIVE_INFINITY;
   const end = clip.start + clip.duration;
@@ -76,5 +85,8 @@ export function resizeLimits(track: Track, clip: Clip, minDuration: number): { m
     if (otherEnd <= clip.start) minStart = Math.max(minStart, otherEnd);
     if (other.start >= end) maxEnd = Math.min(maxEnd, other.start);
   }
-  return { minStart: Math.min(minStart, end - minDuration), maxEnd: Math.max(maxEnd, clip.start + minDuration) };
+  return {
+    minStart: Math.min(minStart, end - minDuration),
+    maxEnd: Math.max(maxEnd, clip.start + minDuration),
+  };
 }

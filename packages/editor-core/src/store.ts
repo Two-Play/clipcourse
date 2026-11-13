@@ -96,7 +96,9 @@ export function createEditorStore(initial: Course, now: () => number = Date.now)
     const normalizeView = (course: Course, state: Partial<EditorState>) => {
       const chapterId = state.chapterId ?? get().chapterId;
       const chapter = course.chapters.find((c) => c.id === chapterId) ?? course.chapters[0]!;
-      const selection = (state.selection ?? get().selection).filter((id) => findClip(course, id) !== null);
+      const selection = (state.selection ?? get().selection).filter(
+        (id) => findClip(course, id) !== null,
+      );
       const playhead = Math.min(state.playhead ?? get().playhead, chapter.duration);
       return { chapterId: chapter.id, selection, playhead };
     };
@@ -105,7 +107,12 @@ export function createEditorStore(initial: Course, now: () => number = Date.now)
       const { past, revision } = get();
       const last = past[past.length - 1];
       let nextPast: HistoryEntry[];
-      if (last && entry.mergeKey && last.mergeKey === entry.mergeKey && entry.time - last.time < MERGE_WINDOW) {
+      if (
+        last &&
+        entry.mergeKey &&
+        last.mergeKey === entry.mergeKey &&
+        entry.time - last.time < MERGE_WINDOW
+      ) {
         nextPast = [
           ...past.slice(0, -1),
           {
@@ -245,7 +252,10 @@ export function createEditorStore(initial: Course, now: () => number = Date.now)
       load(course, chapterId) {
         transactionBase = null;
         transactionRecipe = null;
-        const id = chapterId && course.chapters.some((c) => c.id === chapterId) ? chapterId : course.chapters[0]!.id;
+        const id =
+          chapterId && course.chapters.some((c) => c.id === chapterId)
+            ? chapterId
+            : course.chapters[0]!.id;
         set({
           course,
           chapterId: id,

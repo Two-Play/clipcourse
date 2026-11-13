@@ -128,7 +128,10 @@ export interface NewClipOptions {
 export function createClip(course: Course, type: ClipType, options: NewClipOptions): Clip {
   const { id, start } = options;
   const mediaDuration = options.asset?.duration;
-  const duration = Math.max(1, Math.round(options.duration ?? mediaDuration ?? DEFAULT_CLIP_DURATION));
+  const duration = Math.max(
+    1,
+    Math.round(options.duration ?? mediaDuration ?? DEFAULT_CLIP_DURATION),
+  );
   const base = { id, start: Math.max(0, Math.round(start)), duration };
   switch (type) {
     case 'text':
@@ -161,9 +164,21 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         radius: 8,
       };
     case 'image':
-      return { ...base, type, assetId: requireAsset(options), frame: defaultFrame(course, type), fit: 'contain' };
+      return {
+        ...base,
+        type,
+        assetId: requireAsset(options),
+        frame: defaultFrame(course, type),
+        fit: 'contain',
+      };
     case 'video':
-      return { ...base, type, assetId: requireAsset(options), frame: defaultFrame(course, type), fit: 'contain' };
+      return {
+        ...base,
+        type,
+        assetId: requireAsset(options),
+        frame: defaultFrame(course, type),
+        fit: 'contain',
+      };
     case 'audio':
       return { ...base, type, assetId: requireAsset(options) };
   }
@@ -216,6 +231,7 @@ export function createEmptyCourse(newId: IdFactory = randomId, title = 'Untitled
 /** The end of the last clip in a chapter, ms. */
 export function contentEnd(chapter: Chapter): number {
   let end = 0;
-  for (const track of chapter.tracks) for (const clip of track.clips) end = Math.max(end, clip.start + clip.duration);
+  for (const track of chapter.tracks)
+    for (const clip of track.clips) end = Math.max(end, clip.start + clip.duration);
   return end;
 }

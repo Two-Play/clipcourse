@@ -44,7 +44,12 @@ export function snapTime(time: number, points: readonly number[], threshold: num
  * Snaps a moving block [start, start + duration): whichever edge is closer
  * to a snap point wins.
  */
-export function snapBlock(start: number, duration: number, points: readonly number[], threshold: number): SnapResult {
+export function snapBlock(
+  start: number,
+  duration: number,
+  points: readonly number[],
+  threshold: number,
+): SnapResult {
   const head = snapTime(start, points, threshold);
   const tail = snapTime(start + duration, points, threshold);
   const headDistance = head.target === null ? Infinity : Math.abs(head.target - start);

@@ -48,8 +48,16 @@ describe('zip round trip', () => {
     ['not a zip', bytes('hello'), /not a valid .zip/],
     ['no course', zipSync({ 'x.txt': bytes('x') }), /No course.json/],
     ['bad json', zipSync({ 'course.json': bytes('{') }), /not valid JSON/],
-    ['invalid course', zipSync({ 'course.json': bytes('{"formatVersion":1}') }), /not a valid course/],
-    ['missing media', zipSync({ 'course.json': bytes(JSON.stringify(testCourse())) }), /Missing file/],
+    [
+      'invalid course',
+      zipSync({ 'course.json': bytes('{"formatVersion":1}') }),
+      /not a valid course/,
+    ],
+    [
+      'missing media',
+      zipSync({ 'course.json': bytes(JSON.stringify(testCourse())) }),
+      /Missing file/,
+    ],
   ])('rejects %s', (_name, data, message) => {
     expect(() => importProjectZip(data)).toThrow(ProjectError);
     expect(() => importProjectZip(data)).toThrow(message);
@@ -58,7 +66,10 @@ describe('zip round trip', () => {
   test('ignores external assets when collecting files', () => {
     const course = testCourse();
     course.assets.img = { kind: 'image', src: 'https://example.com/i.png' };
-    const zip = zipSync({ 'course.json': bytes(JSON.stringify(course)), 'assets/v.mp4': bytes('v') });
+    const zip = zipSync({
+      'course.json': bytes(JSON.stringify(course)),
+      'assets/v.mp4': bytes('v'),
+    });
     expect(importProjectZip(zip).files.size).toBe(1);
   });
 });

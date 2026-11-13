@@ -36,11 +36,19 @@ describe('history', () => {
     const store = createEditorStore(testCourse(), () => now);
     for (const text of ['H', 'He', 'Hel']) {
       now += 200;
-      store.getState().execute('Text', cmd.updateClip('a', (c) => c.type === 'box' && (c.text = text)), { mergeKey: 'text:a' });
+      store.getState().execute(
+        'Text',
+        cmd.updateClip('a', (c) => c.type === 'box' && (c.text = text)),
+        { mergeKey: 'text:a' },
+      );
     }
     expect(store.getState().past).toHaveLength(1);
     now += 5000;
-    store.getState().execute('Text', cmd.updateClip('a', (c) => c.type === 'box' && (c.text = 'Hello')), { mergeKey: 'text:a' });
+    store.getState().execute(
+      'Text',
+      cmd.updateClip('a', (c) => c.type === 'box' && (c.text = 'Hello')),
+      { mergeKey: 'text:a' },
+    );
     expect(store.getState().past).toHaveLength(2);
     store.getState().undo();
     store.getState().undo();
@@ -58,7 +66,8 @@ describe('history', () => {
 
   test('history limit', () => {
     const store = createEditorStore(testCourse());
-    for (let i = 0; i < 320; i++) store.getState().execute('m', cmd.moveClip('b', 4000 + (i % 2 ? 0 : 100)));
+    for (let i = 0; i < 320; i++)
+      store.getState().execute('m', cmd.moveClip('b', 4000 + (i % 2 ? 0 : 100)));
     expect(store.getState().past.length).toBe(300);
   });
 });
@@ -125,7 +134,7 @@ describe('view state', () => {
 
 test('random edit sequences stay valid and fully undo (fuzz)', () => {
   let seed = 42;
-  const rand = () => ((seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31);
+  const rand = () => (seed = (seed * 1103515245 + 12345) % 2 ** 31) / 2 ** 31;
   const store = createEditorStore(testCourse());
   const s = store.getState;
   const original = s().course;
@@ -142,7 +151,9 @@ test('random edit sequences stay valid and fully undo (fuzz)', () => {
     for (const track of s().course.chapters[0]!.tracks) {
       const sorted = [...track.clips].sort((x, y) => x.start - y.start);
       for (let k = 1; k < sorted.length; k++) {
-        expect(sorted[k]!.start).toBeGreaterThanOrEqual(sorted[k - 1]!.start + sorted[k - 1]!.duration);
+        expect(sorted[k]!.start).toBeGreaterThanOrEqual(
+          sorted[k - 1]!.start + sorted[k - 1]!.duration,
+        );
       }
     }
   }

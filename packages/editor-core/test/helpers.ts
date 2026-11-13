@@ -41,7 +41,13 @@ export function testCourse(): Course {
           },
         ],
       },
-      { id: 'ch2', title: 'Two', duration: 5000, transition: { mode: 'auto' }, tracks: [{ id: 't3', clips: [] }] },
+      {
+        id: 'ch2',
+        title: 'Two',
+        duration: 5000,
+        transition: { mode: 'auto' },
+        tracks: [{ id: 't3', clips: [] }],
+      },
     ],
   };
 }
@@ -54,12 +60,14 @@ export function expectValid(course: Course) {
 
 export function clipById(course: Course, id: string): Clip {
   for (const chapter of course.chapters)
-    for (const track of chapter.tracks) for (const clip of track.clips) if (clip.id === id) return clip;
+    for (const track of chapter.tracks)
+      for (const clip of track.clips) if (clip.id === id) return clip;
   throw new Error(`no clip ${id}`);
 }
 
 export function trackOf(course: Course, clipId: string): string {
   for (const chapter of course.chapters)
-    for (const track of chapter.tracks) if (track.clips.some((c) => c.id === clipId)) return track.id;
+    for (const track of chapter.tracks)
+      if (track.clips.some((c) => c.id === clipId)) return track.id;
   throw new Error(`no clip ${clipId}`);
 }

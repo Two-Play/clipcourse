@@ -15,7 +15,10 @@ describe('clip commands', () => {
   test('moveClip within a track resolves overlaps', () => {
     const c = run(cmd.moveClip('a', 3500));
     expect(clipById(c, 'a').start).toBe(2000); // gap 2000–4000 is exactly 2000 long
-    expect(run(cmd.moveClip('a', 4500)).chapters[0]!.tracks[0]!.clips.map((x) => x.id)).toEqual(['b', 'a']);
+    expect(run(cmd.moveClip('a', 4500)).chapters[0]!.tracks[0]!.clips.map((x) => x.id)).toEqual([
+      'b',
+      'a',
+    ]);
   });
 
   test('moveClip to another track in the same chapter', () => {
@@ -75,7 +78,12 @@ describe('clip commands', () => {
   test('updateClip rounds times and cannot change identity', () => {
     const c = run(cmd.updateClip('a', (clip) => void (clip.start = 12.4)));
     expect(clipById(c, 'a').start).toBe(12);
-    expect(() => produce(testCourse(), cmd.updateClip('a', (clip) => void (clip.id = 'zz')))).toThrow();
+    expect(() =>
+      produce(
+        testCourse(),
+        cmd.updateClip('a', (clip) => void (clip.id = 'zz')),
+      ),
+    ).toThrow();
   });
 
   test('removeClips', () => {
@@ -99,8 +107,18 @@ describe('track and chapter commands', () => {
   });
 
   test('chapter props and fit to content', () => {
-    let c = run(cmd.setChapterProps('ch1', { title: 'Intro', transition: { mode: 'auto' }, background: '#123' }));
-    expect(c.chapters[0]).toMatchObject({ title: 'Intro', transition: { mode: 'auto' }, background: '#123' });
+    let c = run(
+      cmd.setChapterProps('ch1', {
+        title: 'Intro',
+        transition: { mode: 'auto' },
+        background: '#123',
+      }),
+    );
+    expect(c.chapters[0]).toMatchObject({
+      title: 'Intro',
+      transition: { mode: 'auto' },
+      background: '#123',
+    });
     c = run(cmd.setChapterProps('ch1', { background: null }), c);
     expect('background' in c.chapters[0]!).toBe(false);
     c = run(cmd.fitChapterToContent('ch1'), c);
@@ -116,7 +134,9 @@ describe('assets', () => {
   });
 
   test('addAsset refuses duplicates', () => {
-    expect(() => produce(testCourse(), cmd.addAsset('img', { kind: 'image', src: 'assets/x.png' }))).toThrow();
+    expect(() =>
+      produce(testCourse(), cmd.addAsset('img', { kind: 'image', src: 'assets/x.png' })),
+    ).toThrow();
   });
 });
 
@@ -128,10 +148,19 @@ describe('factories', () => {
     let next = course;
     const trackId = course.chapters[0]!.tracks[0]!.id;
     for (const type of ['text', 'box', 'shape'] as const) {
-      next = run(cmd.addClip(trackId, createClip(next, type, { id: newId('clip'), start: 0 })), next);
+      next = run(
+        cmd.addClip(trackId, createClip(next, type, { id: newId('clip'), start: 0 })),
+        next,
+      );
     }
     next = run(cmd.addAsset('pic', { kind: 'image', src: 'assets/p.png' }), next);
-    next = run(cmd.addClip(trackId, createClip(next, 'image', { id: newId('clip'), start: 0, assetId: 'pic' })), next);
+    next = run(
+      cmd.addClip(
+        trackId,
+        createClip(next, 'image', { id: newId('clip'), start: 0, assetId: 'pic' }),
+      ),
+      next,
+    );
     expect(next.chapters[0]!.tracks[0]!.clips.map((c) => c.start)).toEqual([0, 3000, 6000, 9000]);
   });
 
