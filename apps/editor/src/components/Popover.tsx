@@ -124,6 +124,9 @@ export interface MenuItem {
   label: string;
   onSelect: () => void;
   selected?: boolean;
+  disabled?: boolean;
+  /** Tooltip, e.g. why an item is disabled. */
+  hint?: string;
   separatorBefore?: boolean;
   /** Optional secondary action shown at the end of the row (e.g. delete). */
   aside?: ReactNode;
@@ -156,7 +159,7 @@ export function MenuPopover({
       const root = document.getElementById(id ?? '') ?? menuRef.current?.closest('.popover');
       const target =
         root?.querySelector<HTMLButtonElement>('[role="menuitem"].is-selected') ??
-        root?.querySelector<HTMLButtonElement>('[role="menuitem"]');
+        root?.querySelector<HTMLButtonElement>('[role="menuitem"]:not(:disabled)');
       target?.focus();
     });
     return () => cancelAnimationFrame(frame);
@@ -168,7 +171,11 @@ export function MenuPopover({
   };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
-    const all = [...event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="menuitem"]')];
+    const all = [
+      ...event.currentTarget.querySelectorAll<HTMLButtonElement>(
+        '[role="menuitem"]:not(:disabled)',
+      ),
+    ];
     const index = all.indexOf(document.activeElement as HTMLButtonElement);
     let next = -1;
     if (event.key === 'ArrowDown') next = (index + 1) % all.length;
@@ -205,6 +212,9 @@ export function MenuPopover({
               type="button"
               role="menuitem"
               className={item.selected ? 'is-selected' : ''}
+              disabled={item.disabled}
+              aria-disabled={item.disabled}
+              title={item.hint}
               onClick={() => {
                 onClose();
                 item.onSelect();

@@ -12,6 +12,9 @@ import {
   duplicateChapter,
   findClip,
   fitChapterToContent,
+  QUESTION_KINDS,
+  setQuiz,
+  createQuestion,
   moveChapter,
   ProjectError,
   removeChapter,
@@ -47,6 +50,8 @@ import {
   FilePlus,
   FolderOpen,
   Highlighter,
+  CircleHelp,
+  ListChecks,
   ImagePlus,
   Layers,
   LayoutTemplate,
@@ -80,6 +85,7 @@ import { useEffect, useState } from 'react';
 import {
   addClipAt,
   addProgressBar,
+  addQuizChapter,
   arrangeClip,
   centerClip,
   deleteSelection,
@@ -94,6 +100,7 @@ import { useEditor, useSession } from '../context.js';
 import { loadExample } from '../examples.js';
 import { t, type MessageKey } from '../i18n.js';
 import { probeMediaDuration } from '../session.js';
+import { KIND_LABEL } from './QuestionEditor.js';
 import {
   Ribbon,
   RibbonButton,
@@ -122,6 +129,7 @@ const TYPE_LABEL: Record<Clip['type'], MessageKey> = {
   audio: 'clipLabelAudio',
   highlight: 'clipLabelHighlight',
   progress: 'clipLabelProgress',
+  question: 'clipLabelQuestion',
 };
 
 const COLLAPSED_KEY = 'clipcourse:ribbon-collapsed';
@@ -300,6 +308,18 @@ export function EditorRibbon(props: RibbonActions) {
     })),
   ];
 
+  const firstImage = Object.entries(course.assets).find(([, a]) => a.kind === 'image')?.[0];
+  const questionItems = QUESTION_KINDS.map((kind) => ({
+    label: t(KIND_LABEL[kind]),
+    disabled: kind === 'hotspot' && !firstImage,
+    ...(kind === 'hotspot' && !firstImage ? { hint: t('hotspotNeedsImage') } : {}),
+    onSelect: () =>
+      addClipAt(session, 'question', {
+        questionKind: kind,
+        ...(kind === 'hotspot' && firstImage ? { assetId: firstImage } : {}),
+      }),
+  }));
+
   const insertGroup = (
     <RibbonGroup label={t('groupInsert')}>
       <RibbonButton icon={Type} label={t('addText')} onClick={() => addClipAt(session, 'text')} />
@@ -314,6 +334,7 @@ export function EditorRibbon(props: RibbonActions) {
         label={t('addHighlight')}
         onClick={() => addClipAt(session, 'highlight')}
       />
+      <RibbonMenu icon={CircleHelp} label={t('insertQuestion')} items={questionItems} />
     </RibbonGroup>
   );
 
@@ -469,6 +490,11 @@ export function EditorRibbon(props: RibbonActions) {
           </RibbonGroup>
           <RibbonGroup label={t('groupChapters')}>
             <RibbonMenu icon={LayoutTemplate} label={t('newChapter')} items={templateItems} />
+            <RibbonButton
+              icon={ListChecks}
+              label={t('quizChapter')}
+              onClick={() => addQuizChapter(session)}
+            />
           </RibbonGroup>
         </>
       ),
@@ -480,6 +506,22 @@ export function EditorRibbon(props: RibbonActions) {
         <>
           <RibbonGroup label={t('groupChapters')}>
             <RibbonMenu icon={LayoutTemplate} label={t('newChapter')} items={templateItems} />
+            <RibbonButton
+              icon={ListChecks}
+              label={chapter.quiz ? t('removeQuiz') : t('makeQuiz')}
+              hint={chapter.quiz ? t('removeQuiz') : t('makeQuiz')}
+              onClick={() =>
+                exec(
+                  chapter.quiz ? 'Remove quiz' : 'Make quiz chapter',
+                  setQuiz(
+                    chapter.id,
+                    chapter.quiz
+                      ? null
+                      : { questions: [createQuestion('single', session.newId('question'))] },
+                  ),
+                )
+              }
+            />
             <RibbonButton
               icon={CopyPlus}
               label={t('duplicate')}

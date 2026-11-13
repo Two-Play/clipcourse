@@ -414,7 +414,8 @@ export function createPlayer(
     stage.render(evaluate(course, state.chapterIndex, state.time, { reducedMotion }), playing);
     spinner.hidden = !(playing && stage.isStalled);
 
-    overlay.hidden = started || playing;
+    // Questions and quizzes take input directly; the start button would only block them.
+    overlay.hidden = started || playing || state.status === 'quiz' || state.status === 'question';
     const startLabel =
       state.time > 0 || state.chapterIndex > 0 || state.seen.some(Boolean)
         ? strings.resume

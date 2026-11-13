@@ -16,7 +16,7 @@ export { parseVtt, cueTextAt } from './core/vtt.js';
 export type { Cue } from './core/vtt.js';
 export { createAnimationFrameClock, createManualClock, MAX_FRAME_DELTA } from './clock.js';
 export type { Clock } from './clock.js';
-export { defaultStrings, formatTime } from './i18n.js';
+export { defaultStrings, format, formatTime } from './i18n.js';
 export type { PlayerStrings } from './i18n.js';
 export { Stage } from './dom/stage.js';
 export type { StageOptions } from './dom/stage.js';

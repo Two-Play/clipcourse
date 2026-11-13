@@ -380,6 +380,9 @@ fieldset {
   margin: 0;
   display: grid;
   gap: 8px;
+  /* Defaults (min-content, auto column) let long rows overflow the panel. */
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
 }
 legend {
   color: var(--muted);
@@ -1209,4 +1212,128 @@ label.radio {
 .tl-header:hover .tl-track-more,
 .tl-header:focus-within .tl-track-more {
   display: inline-flex;
+}
+
+/* --- Questions and quizzes ------------------------------------------------------- */
+.question-editor {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+.question-editor label.field-check {
+  display: grid;
+}
+.q-list {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  margin: 0;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+.q-list legend {
+  font-size: 12px;
+  color: var(--muted);
+}
+/* Text takes the full row; move/delete buttons wrap below, right-aligned. */
+.q-list-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 2px 4px;
+  min-width: 0;
+  padding-bottom: 4px;
+}
+.q-list-row input[type='text'] {
+  flex: 1 1 calc(100% - 28px);
+  min-width: 0;
+}
+.q-list-row button.icon {
+  flex: none;
+  padding: 2px 3px;
+}
+.q-area {
+  display: grid;
+  gap: 2px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.q-area-box {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+.q-area-box label {
+  display: grid;
+  grid-template-columns: 1fr;
+}
+.q-area-box input {
+  width: 100%;
+  min-width: 0;
+}
+.q-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.field-hint {
+  margin: 0;
+  font-size: 11px;
+  color: var(--muted);
+}
+.quiz-fields {
+  display: grid;
+  gap: 8px;
+}
+.quiz-questions {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.quiz-questions li {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  min-width: 0;
+  border-radius: 4px;
+}
+.quiz-questions button.icon {
+  flex: none;
+  padding: 2px 2px;
+}
+.quiz-questions li.is-current {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.quiz-question-pick {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: transparent;
+  border-color: transparent;
+}
+.quiz-question-kind {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+}
+.stage-quiz-preview {
+  pointer-events: none;
+}
+.menu button[role='menuitem']:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.q-list-row input[type='checkbox'],
+.q-list-row input[type='radio'] {
+  flex: none;
+  width: auto;
 }

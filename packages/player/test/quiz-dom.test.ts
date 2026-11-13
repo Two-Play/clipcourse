@@ -100,6 +100,8 @@ test('quiz chapter: one question at a time, result, retry', () => {
   player!.goToChapter(1);
   expect(player!.getState().status).toBe('quiz');
   expect(host.querySelector('.ccp-quiz-progress')!.textContent).toBe('Question 1 of 2');
+  // Reached without pressing Start: the start overlay must not cover the quiz.
+  expect(host.querySelector<HTMLElement>('.ccp-overlay')!.hidden).toBe(true);
 
   const input = host.querySelector<HTMLInputElement>('.ccp-q-text')!;
   input.value = ' paris ';

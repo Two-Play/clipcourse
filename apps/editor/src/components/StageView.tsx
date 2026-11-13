@@ -6,6 +6,7 @@
 import { selectChapter, updateClip } from '@clipcourse/editor-core';
 import type { Frame, VisualClip } from '@clipcourse/format';
 import { evaluate, injectStyles, Stage } from '@clipcourse/player';
+import { QuizStagePreview } from './QuizStagePreview.js';
 import {
   useEffect,
   useLayoutEffect,
@@ -193,6 +194,9 @@ export function StageView() {
           transform: `translate(-50%, -50%) scale(${scale})`,
         }}
       >
+        {course.chapters[chapterIndex]?.quiz && (
+          <QuizStagePreview course={course} chapter={course.chapters[chapterIndex]!} />
+        )}
         <div
           className="stage-overlay"
           role="application"
