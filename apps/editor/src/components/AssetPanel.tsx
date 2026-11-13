@@ -16,6 +16,7 @@ import { addAssetClip } from '../actions.js';
 import { useEditor, useFilesVersion, useSession } from '../context.js';
 import { t } from '../i18n.js';
 import { probeMediaDuration } from '../session.js';
+import { menuLabel, openContextMenu } from './ContextMenu.js';
 import { ASSET_MIME } from './Timeline.js';
 
 const ACCEPT = 'image/*,video/*,audio/*,.vtt,text/vtt';
@@ -95,6 +96,40 @@ export function AssetPanel() {
                   e.dataTransfer.effectAllowed = 'copy';
                 }}
                 data-asset-id={id}
+                onContextMenu={(e) =>
+                  openContextMenu(e, menuLabel(t('menuMedia')), [
+                    {
+                      label: t('addAtPlayhead'),
+                      disabled: !placeable,
+                      onSelect: () => addAssetClip(session, id),
+                    },
+                    {
+                      label: t('editAlt'),
+                      disabled: asset.kind !== 'image',
+                      onSelect: () => {
+                        const alt = window.prompt(t('altText'), asset.alt ?? '');
+                        if (alt === null) return;
+                        session.run('Alternative text', (draft) => {
+                          const a = draft.assets[id];
+                          if (!a) return;
+                          if (alt.trim()) a.alt = alt.trim();
+                          else delete a.alt;
+                        });
+                      },
+                    },
+                    {
+                      label: t('deleteAsset'),
+                      danger: true,
+                      separatorBefore: true,
+                      onSelect: () => {
+                        const users = assetUsage(course, id);
+                        if (users.length)
+                          session.notify(t('mediaInUse', { name, count: users.length }));
+                        else session.run('Remove media', removeAsset(id));
+                      },
+                    },
+                  ])
+                }
               >
                 <span className="asset-thumb" aria-hidden="true">
                   {thumb ? <img src={thumb} alt="" /> : <KindIcon kind={asset.kind} />}

@@ -1,7 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { selectChapter } from '@clipcourse/editor-core';
 import { useEffect } from 'react';
-import { deleteSelection, duplicateSelection, splitSelectionAtPlayhead } from './actions.js';
+import {
+  copySelection,
+  cutSelection,
+  deleteSelection,
+  duplicateSelection,
+  pasteClipboard,
+  splitSelectionAtPlayhead,
+} from './actions.js';
 import type { EditorSession } from './session.js';
 
 /** Advances the playhead while playing; stops at the chapter end. */
@@ -61,6 +68,9 @@ export function useShortcuts(session: EditorSession, enabled: boolean) {
       if (mod && key === 'z' && !e.shiftKey) s.undo();
       else if (mod && (key === 'y' || (key === 'z' && e.shiftKey))) s.redo();
       else if (mod && key === 'd') duplicateSelection(session);
+      else if (mod && key === 'c' && s.selection.length) copySelection(session);
+      else if (mod && key === 'x' && s.selection.length) cutSelection(session);
+      else if (mod && key === 'v' && session.clipboard) pasteClipboard(session);
       else if (mod && key === 'a')
         s.select(selectChapter(s).tracks.flatMap((t) => t.clips.map((c) => c.id)));
       else if (mod) handled = false;

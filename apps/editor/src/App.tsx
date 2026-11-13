@@ -5,6 +5,7 @@ import { AiBridge } from './ai-bridge.js';
 import { AiDialog, AiStatus } from './components/AiDialog.js';
 import { AssetPanel } from './components/AssetPanel.js';
 import { ChapterPanel } from './components/ChapterPanel.js';
+import { ContextMenuHost } from './components/ContextMenu.js';
 import { GlossaryPanel, PopupPanel } from './components/CoursePanels.js';
 import { ExportDialog } from './components/ExportDialog.js';
 import { Inspector } from './components/Inspector.js';
@@ -59,6 +60,7 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
           onTogglePanel={(panel) => setPanels((p) => ({ ...p, [panel]: !p[panel] }))}
         />
         <AiStatus bridge={bridge} />
+        <ContextMenuHost />
         {message && (
           <div className="notice" role="status">
             <span>{message}</span>

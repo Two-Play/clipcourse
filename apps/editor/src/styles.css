@@ -1524,3 +1524,23 @@ dialog.new-course::backdrop {
   align-items: center;
   gap: 8px;
 }
+
+/* --- Context menu ---------------------------------------------------------------- */
+.context-menu {
+  min-width: 230px;
+  z-index: 3000;
+}
+.context-menu button[role='menuitem'] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+.menu-shortcut {
+  font: inherit;
+  font-size: 11px;
+  color: var(--muted);
+}
+.context-menu button[role='menuitem'].is-danger:not(:disabled) {
+  color: #ff8a80;
+}
