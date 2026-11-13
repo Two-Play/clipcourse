@@ -240,6 +240,10 @@ test.describe('media and files', () => {
 
     await ribbon(page, 'File');
     await press(page, 'New');
+    await page
+      .getByRole('dialog', { name: 'New course' })
+      .getByRole('button', { name: 'Create course' })
+      .click();
     expect((await editorState(page)).course.title).toBe('Untitled course');
 
     const chooser = page.waitForEvent('filechooser');

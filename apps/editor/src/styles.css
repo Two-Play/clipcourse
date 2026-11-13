@@ -1394,3 +1394,133 @@ label.radio {
 .tl-clip-badge + .tl-clip-label {
   padding-left: 4px;
 }
+
+/* --- Themes and templates -------------------------------------------------------- */
+.stage-quiz-theme {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.color-field-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.color-field-row select {
+  flex: 1;
+  min-width: 0;
+}
+.color-field-row input[type='color'] {
+  flex: none;
+  width: 36px;
+  padding: 0;
+}
+.color-swatch {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1px solid var(--line);
+}
+.theme-swatch {
+  display: inline-flex;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid;
+  border-radius: 4px;
+}
+.theme-swatch span {
+  width: 8px;
+  height: 14px;
+  border-radius: 2px;
+}
+.theme-tiles {
+  display: flex;
+  gap: 4px;
+}
+.theme-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  font-size: 11px;
+  background: transparent;
+  border-color: transparent;
+}
+.theme-tile[aria-pressed='true'] {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+dialog.new-course {
+  width: min(1100px, 96vw);
+  max-height: 92vh;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--fg);
+  overflow: auto;
+}
+dialog.new-course::backdrop {
+  background: rgba(0, 0, 0, 0.7);
+}
+.gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
+}
+.gallery-card,
+.theme-option {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 8px;
+  border: 2px solid var(--line);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.gallery-card input,
+.theme-option input {
+  position: absolute;
+  opacity: 0;
+}
+.gallery-card.is-selected,
+.theme-option.is-selected {
+  border-color: var(--accent);
+}
+.gallery-card:focus-within,
+.theme-option:focus-within {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.gallery-name {
+  font-weight: 600;
+}
+.gallery-description {
+  font-size: 12px;
+  color: var(--muted);
+}
+.course-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  background: #000;
+}
+.course-thumb .ccp-stage {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.theme-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}

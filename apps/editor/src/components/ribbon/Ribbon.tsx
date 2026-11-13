@@ -4,6 +4,9 @@
  * Accessible: tabs are a WAI-ARIA tablist (arrow keys, Home/End), groups
  * are labelled, every button has a visible label or an aria-label.
  */
+import { resolveColor, themeOf } from '@clipcourse/format';
+import { useEditor } from '../../context.js';
+import { toHex } from '../ColorField.js';
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react';
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import { MenuPopover, type MenuItem } from '../Popover.js';
@@ -229,11 +232,9 @@ export function RibbonColor({
   onChange: (color: string) => void;
 }) {
   const id = useId();
-  const hex = /^#[0-9a-f]{6}$/i.test(value)
-    ? value
-    : /^#[0-9a-f]{3}$/i.test(value)
-      ? '#' + [...value.slice(1)].map((c) => c + c).join('')
-      : '#000000';
+  // Theme roles show their current color; picking a color sets a custom one.
+  const theme = useEditor((st) => themeOf(st.course));
+  const hex = toHex(resolveColor(value, theme)) ?? '#000000';
   return (
     <label className="ribbon-color" htmlFor={id} title={label}>
       <Icon size={16} aria-hidden />

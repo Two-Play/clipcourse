@@ -6,9 +6,9 @@
 import type { Asset, Chapter, Course, Popup, Question } from '@clipcourse/format';
 import { cloneChapter } from './commands.js';
 import type { IdFactory } from './document.js';
-import { createClip } from './document.js';
 import { assetIdFromName, ASSET_DIR, sanitizeFileName, type Project } from './project.js';
 import { dropForeignActions, remapActions } from './references.js';
+import { AREA, blocks } from './blocks.js';
 
 export interface ChapterTemplate {
   id: string;
@@ -195,75 +195,150 @@ function sameBytes(a: Uint8Array | undefined, b: Uint8Array): boolean {
   return true;
 }
 
-/** Templates that ship with the editor (no media). */
+/** Templates that ship with the editor (no media). They use theme colors. */
 export function builtInTemplates(course: Course): ChapterTemplate[] {
   const ids = { n: 0 };
-  const id = (p: string) => `${p}_${++ids.n}`;
-  const { width: w, height: h } = course.stage;
-  const text = (
-    text: string,
-    y: number,
-    size: number,
-    role: 'heading' | 'paragraph',
-    start: number,
-  ) => {
-    const clip = createClip(course, 'text', { id: id('clip'), start, duration: 8000 - start });
-    if (clip.type === 'text') {
-      clip.text = text;
-      clip.role = role;
-      clip.frame = {
-        x: Math.round(w * 0.1),
-        y: Math.round(h * y),
-        width: Math.round(w * 0.8),
-        height: Math.round(size * 2.4),
-      };
-      clip.style = {
-        fontSize: size,
-        color: '#ffffff',
-        align: role === 'heading' ? 'center' : 'left',
-        verticalAlign: 'middle',
-        ...(role === 'heading' ? { fontWeight: 700 } : {}),
-      };
-      clip.animations = { in: { type: 'fade', duration: 500 } };
-    }
-    return clip;
-  };
-  const make = (name: string, title: string, tracks: Chapter['tracks']): ChapterTemplate => ({
+  const b = blocks(course, (p) => `${p}_${++ids.n}`);
+  const make = (name: string, chapter: Chapter): ChapterTemplate => ({
     id: `builtin_${name.toLowerCase().replace(/\W+/g, '_')}`,
     name,
     builtIn: true,
     createdAt: 0,
     assets: {},
     files: [],
-    chapter: { id: id('chapter'), title, duration: 8000, transition: { mode: 'wait' }, tracks },
+    chapter,
   });
+  const bullets = (items: string[]) =>
+    items.map((item, i) =>
+      b.track(`Point ${i + 1}`, b.text(`• ${item}`, AREA.bullet(i), { start: 1000 + i * 1500 })),
+    );
+
+  const reveal = (() => {
+    const answer = b.text('The answer, shown when the learner asks for it.', AREA.subtitle, {
+      align: 'center',
+      startsHidden: true,
+    });
+    return b.chapter('Think about it', [
+      b.track('Question', b.text('A question to think about?', AREA.title, { heading: true })),
+      b.track('Answer', answer),
+      b.track(
+        'Button',
+        b.button('Show the answer', AREA.buttonCenter, {
+          type: 'setClipVisibility',
+          clipId: answer.id,
+          visible: 'show',
+          pause: true,
+        }),
+      ),
+    ]);
+  })();
+
+  const choice = (() => {
+    const chapter = b.chapter('Your choice', []);
+    const self = { type: 'goToChapter' as const, chapterId: chapter.id };
+    chapter.tracks = [
+      b.track('Question', b.text('What would you do?', AREA.title, { heading: true })),
+      b.track(
+        'Hint',
+        b.text('Set where each button leads under "On click".', AREA.subtitle, {
+          align: 'center',
+          size: 32,
+          color: 'theme:muted',
+        }),
+      ),
+      b.track('Buttons 1', b.button('Option A', AREA.buttonLeft, self)),
+      b.track('Buttons 2', b.button('Option B', AREA.buttonRight, self)),
+    ];
+    return chapter;
+  })();
+
   return [
-    make('Blank chapter', 'New chapter', [{ id: id('track'), name: 'Text', clips: [] }]),
-    make('Title', 'Title', [
-      { id: id('track'), name: 'Title', clips: [text('Chapter title', 0.35, 96, 'heading', 0)] },
-      {
-        id: id('track'),
-        name: 'Subtitle',
-        clips: [text('A short subtitle', 0.55, 48, 'paragraph', 800)],
-      },
-    ]),
-    make('Title and bullet points', 'Key points', [
-      { id: id('track'), name: 'Title', clips: [text('Key points', 0.08, 72, 'heading', 0)] },
-      {
-        id: id('track'),
-        name: 'Point 1',
-        clips: [text('• First point', 0.32, 48, 'paragraph', 1000)],
-      },
-      {
-        id: id('track'),
-        name: 'Point 2',
-        clips: [text('• Second point', 0.48, 48, 'paragraph', 2500)],
-      },
-      {
-        id: id('track'),
-        name: 'Point 3',
-        clips: [text('• Third point', 0.64, 48, 'paragraph', 4000)],
-      },
-    ]),
+    make('Blank chapter', b.chapter('New chapter', [b.track('Text')])),
+    make(
+      'Title',
+      b.chapter('Title', [
+        b.track('Title', b.text('Chapter title', AREA.title, { heading: true, size: 96 })),
+        b.track(
+          'Subtitle',
+          b.text('A short subtitle', AREA.subtitle, {
+            align: 'center',
+            color: 'theme:muted',
+            start: 800,
+          }),
+        ),
+      ]),
+    ),
+    make(
+      'Title and bullet points',
+      b.chapter('Key points', [
+        b.track('Title', b.text('Key points', AREA.heading, { heading: true, size: 72 })),
+        ...bullets(['First point', 'Second point', 'Third point']),
+      ]),
+    ),
+    make(
+      'Text and picture',
+      b.chapter('Text and picture', [
+        b.track('Title', b.text('Heading', AREA.heading, { heading: true, size: 72 })),
+        b.track(
+          'Text',
+          b.text('Explain the picture here in two or three short sentences.', AREA.left),
+        ),
+        b.track(
+          'Picture',
+          b.box('Drop an image on this track and delete this box.', AREA.right, {
+            align: 'center',
+            color: 'theme:muted',
+            size: 32,
+          }),
+        ),
+      ]),
+    ),
+    make(
+      'Quote',
+      b.chapter('Quote', [
+        b.track(
+          'Quote',
+          b.text('“A short, memorable quote.”', AREA.center, { heading: true, size: 72 }),
+        ),
+        b.track(
+          'Source',
+          b.text(
+            '— Name, role',
+            { x: 0.15, y: 0.62, w: 0.7, h: 0.1 },
+            {
+              align: 'center',
+              color: 'theme:muted',
+              start: 1000,
+            },
+          ),
+        ),
+      ]),
+    ),
+    make(
+      'Two columns',
+      b.chapter('Comparison', [
+        b.track('Title', b.text('Before and after', AREA.heading, { heading: true, size: 72 })),
+        b.track('Left', b.box('Before\n\n• Point\n• Point', AREA.left)),
+        b.track('Right', b.box('After\n\n• Point\n• Point', AREA.right, { start: 1500 })),
+      ]),
+    ),
+    make('Reveal the answer', reveal),
+    make('Choice (branching)', choice),
+    make(
+      'Summary',
+      b.chapter('Summary', [
+        b.track('Title', b.text('Summary', AREA.heading, { heading: true, size: 72 })),
+        b.track(
+          'Box',
+          b.box(
+            '✓ First takeaway\n✓ Second takeaway\n✓ Third takeaway',
+            { x: 0.15, y: 0.28, w: 0.7, h: 0.5 },
+            {
+              size: 48,
+            },
+          ),
+        ),
+      ]),
+    ),
   ];
 }

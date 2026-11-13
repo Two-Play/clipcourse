@@ -15,6 +15,7 @@ import type {
   GlossaryEntry,
   Popup,
   Question,
+  Theme,
   Track,
 } from '@clipcourse/format';
 import { current, isDraft } from 'immer';
@@ -667,4 +668,26 @@ export const removeGlossaryEntry =
     requireEntry(draft, entryId);
     draft.glossary = draft.glossary!.filter((g) => g.id !== entryId);
     if (draft.glossary.length === 0) delete draft.glossary;
+  };
+
+// --- Theme ------------------------------------------------------------------------------
+
+/**
+ * Sets the course theme. With `useBackground` the stage background follows
+ * the theme (so a fixed color from before themes does not hide it).
+ */
+export const setTheme =
+  (theme: Theme, options: { useBackground?: boolean } = {}): Recipe =>
+  (draft) => {
+    draft.theme = structuredClone(theme);
+    if (options.useBackground) draft.stage.background = 'theme:background';
+  };
+
+/** Changes one color role (e.g. a custom accent); the theme keeps its preset name. */
+export const setThemeColor =
+  (role: keyof Theme['colors'], color: string): Recipe =>
+  (draft) => {
+    if (color.startsWith('theme:')) throw new Error('A theme color must be a real color');
+    if (!draft.theme) throw new Error('The course has no theme yet');
+    draft.theme.colors[role] = color;
   };

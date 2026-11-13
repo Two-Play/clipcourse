@@ -33,3 +33,4 @@ export {
   visibilityTargets,
   type TextPart,
 } from './core/interactions.js';
+export { applyThemeVariables, cssColor, themeVariables } from './dom/theme.js';

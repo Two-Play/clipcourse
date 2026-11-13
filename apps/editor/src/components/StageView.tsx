@@ -5,7 +5,8 @@
  */
 import { selectChapter, updateClip } from '@clipcourse/editor-core';
 import type { Frame, VisualClip } from '@clipcourse/format';
-import { evaluate, injectStyles, Stage } from '@clipcourse/player';
+import { evaluate, injectStyles, Stage, themeVariables } from '@clipcourse/player';
+import { themeOf } from '@clipcourse/format';
 import { QuizStagePreview } from './QuizStagePreview.js';
 import {
   useEffect,
@@ -195,7 +196,9 @@ export function StageView() {
         }}
       >
         {course.chapters[chapterIndex]?.quiz && (
-          <QuizStagePreview course={course} chapter={course.chapters[chapterIndex]!} />
+          <div className="stage-quiz-theme" style={themeVariables(themeOf(course))}>
+            <QuizStagePreview course={course} chapter={course.chapters[chapterIndex]!} />
+          </div>
         )}
         <div
           className="stage-overlay"

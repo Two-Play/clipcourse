@@ -37,6 +37,7 @@ import { setQuizFocus } from '../quizFocus.js';
 import { useEditor, useSession } from '../context.js';
 import { t } from '../i18n.js';
 import { ActionFields } from './ActionFields.js';
+import { ColorField } from './ColorField.js';
 import { cleanQuestion, KIND_LABEL, QuestionEditor } from './QuestionEditor.js';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 
@@ -172,25 +173,6 @@ function SelectField<T extends string>(props: {
 }
 
 /** Color input; only #rrggbb is editable here, other formats are kept until changed. */
-function ColorField(props: {
-  label: string;
-  value: string | undefined;
-  onChange: (v: string) => void;
-}) {
-  const hex = /^#[0-9a-f]{6}$/i.test(props.value ?? '')
-    ? props.value!
-    : /^#[0-9a-f]{3}$/i.test(props.value ?? '')
-      ? '#' + [...props.value!.slice(1)].map((c) => c + c).join('')
-      : '#000000';
-  return (
-    <Field label={props.label}>
-      {(id) => (
-        <input id={id} type="color" value={hex} onChange={(e) => props.onChange(e.target.value)} />
-      )}
-    </Field>
-  );
-}
-
 // --- Clip --------------------------------------------------------------------------
 
 function ClipInspector({ clip }: { clip: Clip }) {

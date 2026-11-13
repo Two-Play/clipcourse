@@ -17,10 +17,14 @@ import {
 import { dirname, join, relative, resolve } from 'node:path';
 import {
   COURSE_FILE,
+  COURSE_TEMPLATES,
+  courseTemplate,
   createEmptyCourse,
   ProjectError,
+  randomId,
   type Project,
 } from '@clipcourse/editor-core';
+import { THEME_PRESETS, themePreset } from '@clipcourse/format';
 import { validateCourse } from '@clipcourse/format/validation';
 
 export function isProjectFolder(dir: string): boolean {
@@ -87,17 +91,38 @@ export function saveProjectFolder(
 
 export function createProjectFolder(
   dir: string,
-  options: { title?: string; language?: string; width?: number; height?: number },
+  options: {
+    title?: string;
+    language?: string;
+    width?: number;
+    height?: number;
+    template?: string;
+    theme?: string;
+  },
 ): Project {
   if (existsSync(join(dir, COURSE_FILE)))
     throw new ProjectError(`There is already a project in ${dir}`);
   if (existsSync(dir) && readdirSync(dir).length > 0) {
     throw new ProjectError(`The folder ${dir} is not empty`);
   }
-  const course = createEmptyCourse(undefined, options.title ?? 'Untitled course');
+  const theme = options.theme ? themePreset(options.theme)?.theme : undefined;
+  if (options.theme && !theme)
+    throw new ProjectError(
+      `Unknown theme "${options.theme}". Themes: ${THEME_PRESETS.map((p) => p.id).join(', ')}`,
+    );
+  const template = options.template ? courseTemplate(options.template) : undefined;
+  if (options.template && !template)
+    throw new ProjectError(
+      `Unknown course template "${options.template}". Templates: ${COURSE_TEMPLATES.map((t) => t.id).join(', ')}`,
+    );
+  const size = { width: options.width ?? 1920, height: options.height ?? 1080 };
+  const course = template
+    ? template.create(randomId, theme, size)
+    : createEmptyCourse(undefined, 'Untitled course', theme);
+  if (options.title) course.title = options.title;
   if (options.language) course.language = options.language;
-  if (options.width) course.stage.width = options.width;
-  if (options.height) course.stage.height = options.height;
+  course.stage.width = size.width;
+  course.stage.height = size.height;
   const result = validateCourse(course);
   if (!result.ok) throw new ProjectError('Invalid project settings', result.issues);
   const project = { course: result.course, files: new Map<string, Uint8Array>() };

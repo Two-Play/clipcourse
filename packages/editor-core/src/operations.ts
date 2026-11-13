@@ -17,7 +17,9 @@ import type {
   GlossaryEntry,
   Popup,
   Question,
+  ThemeRole,
 } from '@clipcourse/format';
+import { themeOf as themeOfCourse, themePreset, THEME_PRESETS } from '@clipcourse/format';
 import { validateCourse } from '@clipcourse/format/validation';
 import { current, isDraft } from 'immer';
 import * as cmd from './commands.js';
@@ -135,6 +137,8 @@ export type Operation =
       variants?: string[] | null;
     }
   | { op: 'delete_glossary_entry'; entryId: string }
+  | { op: 'set_theme'; preset: string; accent?: string; useBackground?: boolean }
+  | { op: 'set_theme_color'; role: ThemeRole; color: string }
   | { op: 'undo' }
   | { op: 'redo' };
 
@@ -579,6 +583,25 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
       case 'move_quiz_question':
         recipe = cmd.moveQuizQuestion(operation.chapterId, operation.questionId, operation.index);
         message = 'Question moved';
+        break;
+      case 'set_theme': {
+        const preset = themePreset(operation.preset);
+        if (!preset)
+          throw new OperationError(
+            `Unknown theme "${operation.preset}". Themes: ${THEME_PRESETS.map((p) => p.id).join(', ')}`,
+          );
+        const theme = structuredClone(preset.theme);
+        if (operation.accent) theme.colors.accent = operation.accent;
+        recipe = cmd.setTheme(theme, { useBackground: operation.useBackground !== false });
+        message = `Theme "${preset.name}" applied`;
+        break;
+      }
+      case 'set_theme_color':
+        recipe = (d) => {
+          if (!d.theme) cmd.setTheme(themeOfCourse(d))(d);
+          cmd.setThemeColor(operation.role, operation.color)(d);
+        };
+        message = `Theme color "${operation.role}" changed`;
         break;
       case 'set_completion':
         recipe = cmd.setCompletion(operation.mode);

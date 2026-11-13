@@ -8,7 +8,6 @@ import {
   addMarker,
   addTrack,
   builtInTemplates,
-  createEmptyCourse,
   duplicateChapter,
   findClip,
   fitChapterToContent,
@@ -23,11 +22,13 @@ import {
   selectChapter,
   selectDirty,
   setChapterProps,
+  setTheme,
+  setThemeColor,
   updateClip,
   type ChapterTemplate,
   type Project,
 } from '@clipcourse/editor-core';
-import type { AnimationType, Clip } from '@clipcourse/format';
+import { THEME_PRESETS, themeOf, type AnimationType, type Clip } from '@clipcourse/format';
 import {
   AArrowDown,
   AArrowUp,
@@ -102,6 +103,7 @@ import { loadExample } from '../examples.js';
 import { t, type MessageKey } from '../i18n.js';
 import { probeMediaDuration } from '../session.js';
 import { KIND_LABEL } from './QuestionEditor.js';
+import { NewCourseDialog, ThemeSwatch } from './NewCourseDialog.js';
 import {
   Ribbon,
   RibbonButton,
@@ -153,9 +155,9 @@ function useProjectCommands(onMessage: (message: string) => void) {
   const confirmDiscard = () => !dirty || window.confirm(t('confirmDiscard'));
 
   return {
-    newProject() {
-      if (confirmDiscard())
-        session.load({ course: createEmptyCourse((p) => session.newId(p)), files: new Map() });
+    /** Asks before discarding changes; the caller then shows the template gallery. */
+    newProject(): boolean {
+      return confirmDiscard();
     },
     async open() {
       if (!confirmDiscard()) return;
@@ -271,6 +273,8 @@ export function EditorRibbon(props: RibbonActions) {
   const snapping = useEditor((s) => s.snapping);
   const commands = useProjectCommands(props.onMessage);
   const [active, setActive] = useState('home');
+  const [newOpen, setNewOpen] = useState(false);
+  const currentTheme = themeOf(course);
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const [userTemplates, setUserTemplates] = useState<ChapterTemplate[]>([]);
 
@@ -382,7 +386,11 @@ export function EditorRibbon(props: RibbonActions) {
       content: (
         <>
           <RibbonGroup label={t('groupProject')}>
-            <RibbonButton icon={FilePlus} label={t('new')} onClick={commands.newProject} />
+            <RibbonButton
+              icon={FilePlus}
+              label={t('new')}
+              onClick={() => commands.newProject() && setNewOpen(true)}
+            />
             <RibbonButton
               icon={FolderOpen}
               label={t('open')}
@@ -623,6 +631,60 @@ export function EditorRibbon(props: RibbonActions) {
       ),
     },
     {
+      id: 'design',
+      label: t('tabDesign'),
+      content: (
+        <>
+          <RibbonGroup label={t('groupThemes')}>
+            <div className="theme-tiles" role="group" aria-label={t('groupThemes')}>
+              {THEME_PRESETS.map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  className="theme-tile"
+                  aria-pressed={currentTheme.preset === preset.id}
+                  title={preset.name}
+                  onClick={() => {
+                    exec(`Theme ${preset.name}`, setTheme(preset.theme, { useBackground: true }));
+                    props.onMessage(t('themeApplied', { name: preset.name }));
+                  }}
+                >
+                  <ThemeSwatch theme={preset.theme} />
+                  <span>{preset.name}</span>
+                </button>
+              ))}
+            </div>
+          </RibbonGroup>
+          <RibbonGroup label={t('groupThemeColors')}>
+            {(['accent', 'text', 'background'] as const).map((role) => (
+              <RibbonColor
+                key={role}
+                icon={role === 'accent' ? Palette : role === 'text' ? Type : PaintBucket}
+                label={t(
+                  role === 'accent'
+                    ? 'accentColor'
+                    : role === 'text'
+                      ? 'textColorTheme'
+                      : 'backgroundColorTheme',
+                )}
+                value={currentTheme.colors[role]}
+                onChange={(v) =>
+                  store.getState().execute(
+                    `Theme ${role}`,
+                    (d) => {
+                      if (!d.theme) setTheme(currentTheme)(d);
+                      setThemeColor(role, v)(d);
+                    },
+                    { mergeKey: `theme-color:${role}` },
+                  )
+                }
+              />
+            ))}
+          </RibbonGroup>
+        </>
+      ),
+    },
+    {
       id: 'view',
       label: t('tabView'),
       content: (
@@ -683,13 +745,16 @@ export function EditorRibbon(props: RibbonActions) {
   }
 
   return (
-    <Ribbon
-      tabs={tabs}
-      active={active}
-      onActivate={setActive}
-      collapsed={collapsed}
-      onToggleCollapsed={toggleCollapsed}
-    />
+    <>
+      <Ribbon
+        tabs={tabs}
+        active={active}
+        onActivate={setActive}
+        collapsed={collapsed}
+        onToggleCollapsed={toggleCollapsed}
+      />
+      {newOpen && <NewCourseDialog onClose={() => setNewOpen(false)} />}
+    </>
   );
 }
 

@@ -13,7 +13,7 @@ import type {
   Track,
 } from '@clipcourse/format';
 import { createQuestion } from './questions.js';
-import { FORMAT_VERSION } from '@clipcourse/format';
+import { DEFAULT_THEME, FORMAT_VERSION, themeOf, type Theme } from '@clipcourse/format';
 
 /** Where a track lives: in a chapter, or in the course layer (all chapters). */
 export type TrackScope =
@@ -215,18 +215,18 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         type,
         text: 'New text',
         frame: defaultFrame(course, type),
-        style: { fontSize: 64, color: '#ffffff', align: 'center', verticalAlign: 'middle' },
+        style: { fontSize: 64, color: 'theme:text', align: 'center', verticalAlign: 'middle' },
       };
     case 'box':
       return {
         ...base,
         type,
         frame: defaultFrame(course, type),
-        fill: '#4f8cff',
-        radius: 16,
+        fill: 'theme:surface',
+        radius: themeOf(course).radius,
         padding: 24,
         text: 'Box',
-        style: { fontSize: 40, color: '#ffffff', align: 'center', verticalAlign: 'middle' },
+        style: { fontSize: 40, color: 'theme:text', align: 'center', verticalAlign: 'middle' },
       };
     case 'button': {
       const { width: sw, height: sh } = course.stage;
@@ -237,9 +237,9 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         type,
         text: 'Continue',
         frame: { x: Math.round((sw - width) / 2), y: Math.round(sh * 0.75), width, height },
-        fill: '#4f8cff',
-        radius: 16,
-        style: { fontSize: 40, color: '#ffffff', align: 'center', verticalAlign: 'middle' },
+        fill: 'theme:accent',
+        radius: themeOf(course).radius,
+        style: { fontSize: 40, color: 'theme:onAccent', align: 'center', verticalAlign: 'middle' },
         action: options.action ?? defaultButtonAction(course, options.chapterId),
       };
     }
@@ -249,7 +249,7 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         type,
         shape: 'rect',
         frame: defaultFrame(course, type),
-        stroke: '#ffd166',
+        stroke: 'theme:accent',
         strokeWidth: 8,
         radius: 8,
       };
@@ -282,7 +282,7 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         ...base,
         type,
         frame: { x: 0, y: sh - height, width: sw, height },
-        fill: '#4f8cff',
+        fill: 'theme:accent',
         radius: 0,
       };
     }
@@ -327,14 +327,19 @@ export function clipTypeForAsset(kind: AssetKind): ClipType | null {
 }
 
 /** A new, valid, one-chapter course. */
-export function createEmptyCourse(newId: IdFactory = randomId, title = 'Untitled course'): Course {
+export function createEmptyCourse(
+  newId: IdFactory = randomId,
+  title = 'Untitled course',
+  theme: Theme = DEFAULT_THEME,
+): Course {
   const chapterId = newId('chapter');
   return {
     formatVersion: FORMAT_VERSION,
     id: newId('course'),
     title,
     language: 'en',
-    stage: { width: 1920, height: 1080, background: '#101522' },
+    stage: { width: 1920, height: 1080, background: 'theme:background' },
+    theme: structuredClone(theme),
     assets: {},
     chapters: [
       {

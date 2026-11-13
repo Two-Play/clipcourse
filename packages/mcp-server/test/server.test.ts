@@ -87,6 +87,7 @@ describe('tools', () => {
       'import_media',
       'list_projects',
       'list_templates',
+      'list_themes',
       'move_chapter',
       'move_clip',
       'move_quiz_question',
@@ -96,6 +97,8 @@ describe('tools', () => {
       'set_completion',
       'set_course',
       'set_quiz',
+      'set_theme',
+      'set_theme_color',
       'split_clip',
       'trim_clip',
       'undo',
@@ -409,6 +412,56 @@ describe('tools', () => {
     expect(saved.completion).toEqual({ mode: 'goal' });
     expect(saved.chapters[2].goal).toBe(true);
     expect(saved.glossary[0].term).toBe('branch');
+  });
+
+  test('creates a course from a template with a theme and switches themes', async () => {
+    const themes = (await call('list_themes')) as unknown as { id: string }[];
+    expect(themes.map((t) => t.id)).toEqual([
+      'dark',
+      'light',
+      'corporate',
+      'nature',
+      'warm',
+      'high-contrast',
+    ]);
+    const created = await call('create_project', {
+      path: 'safety2',
+      template: 'compliance',
+      title: 'Fire safety',
+    });
+    let saved = JSON.parse(readFileSync(join(root, 'safety2', 'course.json'), 'utf8'));
+    expect(saved.title).toBe('Fire safety');
+    expect(saved.theme.preset).toBe('corporate');
+    expect(saved.assessment).toEqual({ passingScore: 80 });
+    expect(saved.chapters.map((c: { title: string }) => c.title)).toContain('Case study');
+    expect(created.project).toBe('safety2');
+
+    await call('set_theme', { project: 'safety2', preset: 'high-contrast', accent: '#ffcc00' });
+    await call('set_theme_color', { project: 'safety2', role: 'text', color: '#f0f0f0' });
+    saved = JSON.parse(readFileSync(join(root, 'safety2', 'course.json'), 'utf8'));
+    expect(saved.theme).toMatchObject({
+      preset: 'high-contrast',
+      colors: { accent: '#ffcc00', text: '#f0f0f0' },
+    });
+    const outline = (await call('get_course', { project: 'safety2' })).text as string;
+    expect(outline).toContain('theme high-contrast (accent #ffcc00)');
+    const review = await call('review_course', { project: 'safety2' });
+    expect(review.issues.map((i: { code: string }) => i.code)).not.toContain('low-contrast');
+
+    await expect(
+      call('set_theme_color', { project: 'safety2', role: 'accent', color: 'theme:text' }),
+    ).rejects.toThrow();
+    await expect(call('create_project', { path: 'x', template: 'nope' })).rejects.toThrow();
+
+    // Small stages scale the template layout.
+    await call('create_project', { path: 'small', template: 'micro', width: 960, height: 540 });
+    const small = JSON.parse(readFileSync(join(root, 'small', 'course.json'), 'utf8'));
+    const frames = small.chapters[0].tracks.flatMap(
+      (t: { clips: { frame: { x: number; width: number } }[] }) => t.clips.map((c) => c.frame),
+    );
+    expect(
+      Math.max(...frames.map((f: { x: number; width: number }) => f.x + f.width)),
+    ).toBeLessThanOrEqual(960);
   });
 
   test('undo reverts the last change on disk', async () => {

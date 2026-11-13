@@ -5,6 +5,7 @@
  */
 import {
   FORMAT_VERSION,
+  themeOf,
   type Asset,
   type Course,
   type GlossaryEntry,
@@ -13,6 +14,7 @@ import {
   type VisualClip,
 } from '@clipcourse/format';
 import { visibilityTargets } from './core/interactions.js';
+import { applyThemeVariables } from './dom/theme.js';
 import { createAnimationFrameClock, type Clock } from './clock.js';
 import { Controller, type ControllerEvent, type PlayerState } from './core/controller.js';
 import { evaluate } from './core/evaluate.js';
@@ -148,6 +150,7 @@ export function createPlayer(
 
   // tabindex=-1: clicking anywhere in the player keeps keyboard shortcuts working.
   const root = h('div', 'ccp-root', { lang: course.language, tabindex: '-1' });
+  applyThemeVariables(root, themeOf(course), true);
   const viewport = h('div', 'ccp-viewport');
   const stage = new Stage(doc, course, {
     resolveAsset,

@@ -6,6 +6,8 @@
  */
 import type { Asset, Course, GlossaryEntry, QuestionClip, VisualClip } from '@clipcourse/format';
 import { createGlossaryMatcher, type TextPart } from '../core/interactions.js';
+import { themeOf } from '@clipcourse/format';
+import { applyThemeVariables, cssColor } from './theme.js';
 import { defaultStrings, type PlayerStrings } from '../i18n.js';
 import { renderQuestion } from './question.js';
 import { orderedTracks, type SceneState } from '../core/evaluate.js';
@@ -86,7 +88,8 @@ export class Stage {
     const { width, height, background } = this.course.stage;
     this.element.style.width = `${width}px`;
     this.element.style.height = `${height}px`;
-    this.element.style.background = background;
+    this.element.style.background = cssColor(background);
+    applyThemeVariables(this.element, themeOf(this.course));
   }
 
   /** True if an active media element is buffering and time should not advance. */
@@ -253,7 +256,7 @@ export class Stage {
       }
     }
 
-    this.element.style.background = chapter.background ?? this.course.stage.background;
+    this.element.style.background = cssColor(chapter.background ?? this.course.stage.background);
     this.chapterIndex = index;
   }
 

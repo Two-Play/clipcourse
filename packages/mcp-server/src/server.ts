@@ -11,13 +11,15 @@ import {
   builtInTemplates,
   describeTimeline,
   reviewCourse,
+  COURSE_TEMPLATES,
   type Operation,
 } from '@clipcourse/editor-core';
 import { exportScorm, packageFileName } from '@clipcourse/exporter';
-import schema from '@clipcourse/format/schema/course.v4.schema.json' with { type: 'json' };
+import schema from '@clipcourse/format/schema/course.v5.schema.json' with { type: 'json' };
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FORMAT_GUIDE } from './guide.js';
+import { THEME_PRESETS, THEME_ROLES } from '@clipcourse/format';
 import { readLocalMedia } from './media.js';
 import type { ProjectTarget, Workspace } from './workspace.js';
 
@@ -42,7 +44,11 @@ const project = z
     'Project folder (relative to the first root, or absolute inside a root), or an id like "editor:1" from list_projects',
   );
 const ms = (what: string) => z.number().int().min(0).describe(`${what} in milliseconds`);
-const color = z.string().describe('CSS color: #rrggbb, #rgb, rgb(), rgba() or a color name');
+const color = z
+  .string()
+  .describe(
+    'CSS color (#rrggbb, #rgb, rgb(), rgba(), a color name) or a theme role: theme:background, theme:surface, theme:text, theme:muted, theme:accent, theme:onAccent, theme:success, theme:error (preferred: follows the theme)',
+  );
 const id = (what: string) => z.string().describe(`${what} id (from get_course)`);
 
 const animation = z
@@ -412,15 +418,28 @@ export function createServer(options: ServerOptions): McpServer {
 
   tool(
     'create_project',
-    'Creates a new, empty course project in a new or empty folder.',
+    'Creates a new course project in a new or empty folder: empty, or from a course template, with a design theme.',
     {
       path: z.string().describe('folder for the project, relative to the first root'),
       title: z.string().min(1).max(500).optional(),
       language: z.string().optional().describe('BCP 47 language of the content, e.g. "en" or "de"'),
       width: z.number().int().min(16).max(8192).optional().describe('stage width, default 1920'),
       height: z.number().int().min(16).max(8192).optional().describe('stage height, default 1080'),
+      template: z
+        .enum(COURSE_TEMPLATES.map((t) => t.id) as [string, ...string[]])
+        .optional()
+        .describe(
+          `start from a course template: ${COURSE_TEMPLATES.map((t) => `${t.id} (${t.description})`).join('; ')}`,
+        ),
+      theme: z
+        .enum(THEME_PRESETS.map((p) => p.id) as [string, ...string[]])
+        .optional()
+        .describe("design theme (see list_themes); default: dark, or the template's theme"),
     },
     (args) => {
+      const suggested = args.template
+        ? COURSE_TEMPLATES.find((t) => t.id === args.template)?.theme
+        : undefined;
       const target = workspace.create(
         args.path,
         defined({
@@ -428,6 +447,8 @@ export function createServer(options: ServerOptions): McpServer {
           language: args.language,
           width: args.width,
           height: args.height,
+          template: args.template,
+          theme: args.theme ?? suggested,
         }),
       );
       return json({
@@ -475,10 +496,47 @@ export function createServer(options: ServerOptions): McpServer {
 
   tool(
     'list_templates',
-    'Lists chapter templates usable with add_chapter.',
+    'Lists chapter templates usable with add_chapter (course templates: see create_project).',
     { project },
     (args) => json(builtInTemplates(workspace.open(args.project).course()).map((t) => t.name)),
     { readOnlyHint: true },
+  );
+
+  tool(
+    'list_themes',
+    'Lists the design themes: colors per role and fonts. Clip colors can use a role ("theme:accent") so they follow the theme.',
+    {},
+    () =>
+      json(
+        THEME_PRESETS.map((p) => ({
+          id: p.id,
+          name: p.name,
+          colors: p.theme.colors,
+          headingFont: p.theme.headingFont,
+          bodyFont: p.theme.bodyFont,
+        })),
+      ),
+    { readOnlyHint: true },
+  );
+
+  op(
+    'set_theme',
+    'Applies a design theme to the whole course (colors and fonts of everything that uses theme roles). The stage background follows the theme.',
+    {
+      preset: z.enum(THEME_PRESETS.map((p) => p.id) as [string, ...string[]]),
+      accent: color.optional().describe('own accent color (e.g. brand color); keep it readable'),
+    },
+    (a) => ({ op: 'set_theme', preset: a.preset, ...defined({ accent: a.accent }) }),
+  );
+
+  op(
+    'set_theme_color',
+    'Changes one color of the course theme, e.g. the accent to a brand color.',
+    {
+      role: z.enum(THEME_ROLES),
+      color: z.string().describe('a real CSS color (#rrggbb), not a role'),
+    },
+    (a) => ({ op: 'set_theme_color', role: a.role, color: a.color }),
   );
 
   op(

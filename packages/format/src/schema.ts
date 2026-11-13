@@ -10,8 +10,11 @@ import type { Course } from './types.js';
 
 export const ID_PATTERN = /^[A-Za-z_][A-Za-z0-9_.-]{0,127}$/;
 /** Hex, rgb(), rgba(), hsl(), hsla() or a named color. No url() or other CSS. */
-export const COLOR_PATTERN =
+export const CONCRETE_COLOR_PATTERN =
   /^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\([0-9.,%\s/+-]*\)|[a-zA-Z]{1,30})$/;
+/** A concrete color or a theme role reference ("theme:accent"). */
+export const COLOR_PATTERN =
+  /^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\([0-9.,%\s/+-]*\)|[a-zA-Z]{1,30}|theme:(background|surface|text|muted|accent|onAccent|success|error))$/;
 /** Font family list without anything that could escape the CSS value. */
 export const FONT_FAMILY_PATTERN = /^[A-Za-z0-9 ,'"_-]{1,200}$/;
 /**
@@ -24,6 +27,8 @@ export const LANGUAGE_PATTERN = /^[A-Za-z]{2,3}(-[A-Za-z0-9]{1,8})*$/;
 
 const id = v.pipe(v.string(), v.regex(ID_PATTERN, 'Invalid id'));
 const color = v.pipe(v.string(), v.regex(COLOR_PATTERN, 'Invalid color'));
+const concreteColor = v.pipe(v.string(), v.regex(CONCRETE_COLOR_PATTERN, 'Invalid color'));
+const fontStack = v.pipe(v.string(), v.regex(FONT_FAMILY_PATTERN));
 const ms = v.pipe(v.number(), v.integer(), v.minValue(0));
 const positiveMs = v.pipe(v.number(), v.integer(), v.minValue(1));
 const finite = v.pipe(v.number(), v.finite());
@@ -352,7 +357,7 @@ const ChapterSchema = v.strictObject({
 });
 
 export const CourseSchema = v.strictObject({
-  formatVersion: v.literal(4),
+  formatVersion: v.literal(5),
   id,
   title: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
   language: v.pipe(v.string(), v.regex(LANGUAGE_PATTERN, 'Invalid language tag')),
@@ -367,6 +372,24 @@ export const CourseSchema = v.strictObject({
   chapters: v.pipe(v.array(ChapterSchema), v.minLength(1, 'A course needs at least one chapter')),
   assessment: v.exactOptional(
     v.strictObject({ passingScore: v.pipe(v.number(), v.minValue(0), v.maxValue(100)) }),
+  ),
+  theme: v.exactOptional(
+    v.strictObject({
+      preset: v.exactOptional(v.pipe(v.string(), v.maxLength(100))),
+      colors: v.strictObject({
+        background: concreteColor,
+        surface: concreteColor,
+        text: concreteColor,
+        muted: concreteColor,
+        accent: concreteColor,
+        onAccent: concreteColor,
+        success: concreteColor,
+        error: concreteColor,
+      }),
+      headingFont: fontStack,
+      bodyFont: fontStack,
+      radius: v.pipe(v.number(), v.minValue(0), v.maxValue(200)),
+    }),
   ),
   completion: v.exactOptional(
     v.variant('mode', [
