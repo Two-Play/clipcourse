@@ -4,6 +4,7 @@
  * directly; each platform provides a ProjectStorage.
  */
 import type { Project } from './project.js';
+import type { ChapterTemplate } from './templates.js';
 
 export interface PickedFile {
   name: string;
@@ -24,4 +25,8 @@ export interface ProjectStorage {
   loadDraft(): Promise<Project | null>;
   saveDraft(project: Project): Promise<void>;
   clearDraft(): Promise<void>;
+  /** User templates, shared by all projects on this device. */
+  listTemplates(): Promise<ChapterTemplate[]>;
+  saveTemplate(template: ChapterTemplate): Promise<void>;
+  deleteTemplate(id: string): Promise<void>;
 }

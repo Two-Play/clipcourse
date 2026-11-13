@@ -12,8 +12,17 @@ import type {
 } from '@clipcourse/format';
 import { FORMAT_VERSION } from '@clipcourse/format';
 
+/** Where a track lives: in a chapter, or in the course layer (all chapters). */
+export type TrackScope =
+  | { kind: 'chapter'; chapterIndex: number }
+  | { kind: 'course'; layer: 'background' | 'foreground' };
+
 export interface TrackLocation {
+  scope: TrackScope;
+  /** Index of the chapter, or -1 for course layer tracks. */
   chapterIndex: number;
+  /** The array that contains the track (for splicing). */
+  tracks: Track[];
   trackIndex: number;
   track: Track;
 }
@@ -33,23 +42,67 @@ export function getChapter(course: Course, chapterId: string): Chapter {
   return chapter;
 }
 
+/** Every track array of the course with its scope. */
+export function trackGroups(course: Course): { scope: TrackScope; tracks: Track[] }[] {
+  const groups: { scope: TrackScope; tracks: Track[] }[] = course.chapters.map(
+    (chapter, chapterIndex) => ({
+      scope: { kind: 'chapter', chapterIndex },
+      tracks: chapter.tracks,
+    }),
+  );
+  if (course.courseLayer) {
+    groups.push({
+      scope: { kind: 'course', layer: 'background' },
+      tracks: course.courseLayer.background,
+    });
+    groups.push({
+      scope: { kind: 'course', layer: 'foreground' },
+      tracks: course.courseLayer.foreground,
+    });
+  }
+  return groups;
+}
+
+const chapterIndexOf = (scope: TrackScope) => (scope.kind === 'chapter' ? scope.chapterIndex : -1);
+
+/** True if clips may move between tracks in these two scopes. */
+export function sameScope(a: TrackScope, b: TrackScope): boolean {
+  return a.kind === 'chapter'
+    ? b.kind === 'chapter' && a.chapterIndex === b.chapterIndex
+    : b.kind === 'course';
+}
+
 export function findTrack(course: Course, trackId: string): TrackLocation | null {
-  for (let chapterIndex = 0; chapterIndex < course.chapters.length; chapterIndex++) {
-    const tracks = course.chapters[chapterIndex]!.tracks;
+  for (const { scope, tracks } of trackGroups(course)) {
     const trackIndex = tracks.findIndex((t) => t.id === trackId);
-    if (trackIndex >= 0) return { chapterIndex, trackIndex, track: tracks[trackIndex]! };
+    if (trackIndex >= 0) {
+      return {
+        scope,
+        chapterIndex: chapterIndexOf(scope),
+        tracks,
+        trackIndex,
+        track: tracks[trackIndex]!,
+      };
+    }
   }
   return null;
 }
 
 export function findClip(course: Course, clipId: string): ClipLocation | null {
-  for (let chapterIndex = 0; chapterIndex < course.chapters.length; chapterIndex++) {
-    const tracks = course.chapters[chapterIndex]!.tracks;
+  for (const { scope, tracks } of trackGroups(course)) {
     for (let trackIndex = 0; trackIndex < tracks.length; trackIndex++) {
       const track = tracks[trackIndex]!;
       const clipIndex = track.clips.findIndex((c) => c.id === clipId);
       if (clipIndex >= 0) {
-        return { chapterIndex, trackIndex, track, clipIndex, clip: track.clips[clipIndex]! };
+        return {
+          scope,
+          chapterIndex: chapterIndexOf(scope),
+          tracks,
+          trackIndex,
+          track,
+          clipIndex,
+          clip: track.clips[clipIndex]!,
+        };
       }
     }
   }
@@ -101,7 +154,7 @@ export function defaultFrame(course: Course, type: ClipType, aspect = 16 / 9): F
     const height = Math.round(sh * 0.15);
     return { x: Math.round((sw - width) / 2), y: Math.round((sh - height) / 2), width, height };
   }
-  if (type === 'shape' || type === 'box') {
+  if (type === 'shape' || type === 'box' || type === 'highlight') {
     const width = Math.round(sw * 0.3);
     const height = Math.round(sh * 0.25);
     return { x: Math.round((sw - width) / 2), y: Math.round((sh - height) / 2), width, height };
@@ -116,6 +169,11 @@ export function defaultFrame(course: Course, type: ClipType, aspect = 16 / 9): F
 }
 
 export const DEFAULT_CLIP_DURATION = 3000;
+/**
+ * Default duration for course layer clips: long enough to cover any
+ * chapter, so "all chapters" elements stay visible to the chapter end.
+ */
+export const COURSE_LAYER_DURATION = 24 * 60 * 60 * 1000;
 
 export interface NewClipOptions {
   id: string;
@@ -164,6 +222,27 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         strokeWidth: 8,
         radius: 8,
       };
+    case 'highlight':
+      return {
+        ...base,
+        type,
+        kind: 'frame',
+        frame: defaultFrame(course, type),
+        color: '#ff5d73',
+        strokeWidth: 8,
+        radius: 12,
+      };
+    case 'progress': {
+      const { width: sw, height: sh } = course.stage;
+      const height = Math.max(4, Math.round(sh * 0.012));
+      return {
+        ...base,
+        type,
+        frame: { x: 0, y: sh - height, width: sw, height },
+        fill: '#4f8cff',
+        radius: 0,
+      };
+    }
     case 'image':
       return {
         ...base,

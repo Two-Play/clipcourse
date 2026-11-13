@@ -6,3 +6,4 @@ export * from './commands.js';
 export * from './store.js';
 export * from './project.js';
 export type * from './storage.js';
+export * from './templates.js';
