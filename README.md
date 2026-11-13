@@ -6,9 +6,9 @@ clips. Text, images, shapes, boxes and optional video or audio clips appear
 and disappear at exact times. The timeline itself is the beat, so you don't
 need a video or audio track.
 
-> **Status:** early development. Milestones 1–3 (course format, player,
-> timeline editor, chapters, animations) are done. The SCORM export (M4) and
-> the desktop app (M5) are still in progress.
+> **Status:** early development. Milestones 1–4 (course format, player,
+> timeline editor, chapters, animations, SCORM export) are done. The desktop
+> app and polish (M5) are in progress.
 
 ## Features
 
@@ -25,7 +25,7 @@ need a video or audio track.
 | Course layer ("all chapters" tracks), course progress bar                               | ✅ M3  |
 | Animations (fade, slide, zoom), highlights (marker, frame, arrow, spotlight)            | ✅ M3  |
 | Chapter markers and table of contents in the player                                     | ✅ M3  |
-| SCORM 1.2 and 2004 export                                                               | M4     |
+| SCORM 1.2 and 2004 export with resume and completion, LMS simulation in the preview     | ✅ M4  |
 | Desktop app (Tauri), documentation                                                      | M5     |
 
 ## Repository layout
@@ -33,7 +33,9 @@ need a video or audio track.
 ```
 packages/format       MIT    Course format: types, JSON schema, validation, migrations
 packages/player       MIT    Player runtime that ships inside every exported course
+packages/scorm-runtime MIT   SCORM 1.2/2004 runtime, ships inside every exported course
 packages/editor-core  AGPL   Editor model: commands, undo/redo, snapping, project files
+packages/exporter     AGPL   Builds SCORM packages
 apps/editor           AGPL   The editor (React)
 apps/player-demo      MIT    Development harness that plays the example courses
 examples/             CC0    Example courses
@@ -75,7 +77,10 @@ restored on the next start.
   zoom). Highlights (frame, marker, arrow, spotlight) can pulse and carry a
   text for screen readers. With "reduce motion" enabled, the player turns
   slides and zooms into fades and stops pulsing.
-- **Preview** plays the course in the real player.
+- **Preview** plays the course in the real player. With _LMS simulation_
+  it also shows what an LMS would store.
+- **Export SCORM…** creates a package for your LMS, see
+  [docs/scorm.md](docs/scorm.md).
 
 | Key                   | Action                                 |
 | --------------------- | -------------------------------------- |
@@ -151,6 +156,7 @@ pnpm typecheck
 pnpm lint
 pnpm build
 pnpm licenses:check  # dependency license policy
+scripts/lms/moodle-up.sh && pnpm --filter @clipcourse/editor test:lms   # real Moodle, see docs/lms-testing.md
 ```
 
 ## License
