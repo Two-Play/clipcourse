@@ -7,6 +7,8 @@ import {
   moveChapter,
   removeChapter,
   setChapterProps,
+  setQuiz,
+  createQuestion,
   type ChapterTemplate,
 } from '@clipcourse/editor-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
@@ -15,6 +17,7 @@ import { MenuPopover } from './Popover.js';
 import { useEditor, useSession } from '../context.js';
 import { formatTimecode } from '../geometry.js';
 import { t } from '../i18n.js';
+import { menuLabel, openContextMenu } from './ContextMenu.js';
 
 export function ChapterPanel({ onMessage }: { onMessage: (message: string) => void }) {
   const session = useSession();
@@ -41,11 +44,11 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
     listRef.current?.querySelector('.chapter-item.is-active')?.scrollIntoView({ block: 'nearest' });
   }, [chapterId]);
 
-  const saveTemplate = async () => {
-    const current = chapters.find((c) => c.id === chapterId)!;
+  const saveTemplate = async (id: string = chapterId) => {
+    const current = chapters.find((c) => c.id === id)!;
     const name = window.prompt(t('templateName'), current.title)?.trim();
     if (!name) return;
-    await saveChapterAsTemplate(session, chapterId, name);
+    await saveChapterAsTemplate(session, id, name);
     await reloadTemplates();
     onMessage(t('templateSaved', { name }));
   };
@@ -100,11 +103,88 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
       <ol className="chapter-list" ref={listRef}>
         {chapters.map((chapter, index) => {
           const active = chapter.id === chapterId;
+          const move = (to: number) =>
+            store.getState().execute('Move chapter', moveChapter(chapter.id, to));
+          const duplicate = () => {
+            let created = '';
+            store.getState().execute(
+              'Duplicate chapter',
+              duplicateChapter(
+                chapter.id,
+                (p) => session.newId(p),
+                (id) => (created = id),
+              ),
+            );
+            if (created) store.getState().setChapter(created);
+          };
+          const remove = () => {
+            if (!window.confirm(t('confirmDeleteChapter', { title: chapter.title }))) return;
+            const next = chapters[index + 1] ?? chapters[index - 1]!;
+            if (active) store.getState().setChapter(next.id);
+            // Refused (still a click target): stay on the chapter.
+            if (!session.run('Delete chapter', removeChapter(chapter.id)) && active)
+              store.getState().setChapter(chapter.id);
+          };
+          const goalRule = course.completion?.mode === 'goal';
+          const onContextMenu = (e: React.MouseEvent) =>
+            openContextMenu(e, menuLabel(t('menuChapter')), [
+              { label: t('openChapter'), onSelect: () => store.getState().setChapter(chapter.id) },
+              { label: t('rename'), shortcut: 'F2', onSelect: () => setEditing(chapter.id) },
+              { label: t('duplicate'), onSelect: duplicate },
+              {
+                label: t('saveAsTemplate'),
+                onSelect: () => void saveTemplate(chapter.id),
+              },
+              {
+                label: goalRule ? t('markGoal') : t('markOptional'),
+                separatorBefore: true,
+                onSelect: () =>
+                  session.run(
+                    'Chapter flag',
+                    setChapterProps(
+                      chapter.id,
+                      goalRule ? { goal: !chapter.goal } : { optional: !chapter.optional },
+                    ),
+                  ),
+              },
+              {
+                label: chapter.quiz ? t('removeQuiz') : t('makeQuiz'),
+                onSelect: () =>
+                  session.run(
+                    'Quiz',
+                    setQuiz(
+                      chapter.id,
+                      chapter.quiz
+                        ? null
+                        : { questions: [createQuestion('single', session.newId('question'))] },
+                    ),
+                  ),
+              },
+              {
+                label: t('moveChapterUp'),
+                disabled: index === 0,
+                onSelect: () => move(index - 1),
+                separatorBefore: true,
+              },
+              {
+                label: t('moveChapterDown'),
+                disabled: index === chapters.length - 1,
+                onSelect: () => move(index + 1),
+              },
+              {
+                label: t('deleteChapter'),
+                danger: true,
+                disabled: chapters.length <= 1,
+                onSelect: remove,
+                separatorBefore: true,
+              },
+            ]);
           return (
             <li
               key={chapter.id}
               className={`chapter-item${active ? ' is-active' : ''}`}
               data-chapter-id={chapter.id}
+              onContextMenu={onContextMenu}
             >
               {editing === chapter.id ? (
                 <input
@@ -151,9 +231,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                   className="icon"
                   aria-label={`${t('moveChapterUp')}: ${chapter.title}`}
                   disabled={index === 0}
-                  onClick={() =>
-                    store.getState().execute('Move chapter', moveChapter(chapter.id, index - 1))
-                  }
+                  onClick={() => move(index - 1)}
                 >
                   <ArrowUp size={14} aria-hidden />
                 </button>
@@ -162,9 +240,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                   className="icon"
                   aria-label={`${t('moveChapterDown')}: ${chapter.title}`}
                   disabled={index === chapters.length - 1}
-                  onClick={() =>
-                    store.getState().execute('Move chapter', moveChapter(chapter.id, index + 1))
-                  }
+                  onClick={() => move(index + 1)}
                 >
                   <ArrowDown size={14} aria-hidden />
                 </button>
@@ -172,18 +248,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                   type="button"
                   className="icon"
                   aria-label={`${t('duplicateChapter')}: ${chapter.title}`}
-                  onClick={() => {
-                    let created = '';
-                    store.getState().execute(
-                      'Duplicate chapter',
-                      duplicateChapter(
-                        chapter.id,
-                        (p) => session.newId(p),
-                        (id) => (created = id),
-                      ),
-                    );
-                    if (created) store.getState().setChapter(created);
-                  }}
+                  onClick={duplicate}
                 >
                   <CopyPlus size={14} aria-hidden />
                 </button>
@@ -192,15 +257,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                   className="icon"
                   aria-label={`${t('deleteChapter')}: ${chapter.title}`}
                   disabled={chapters.length <= 1}
-                  onClick={() => {
-                    if (!window.confirm(t('confirmDeleteChapter', { title: chapter.title })))
-                      return;
-                    const next = chapters[index + 1] ?? chapters[index - 1]!;
-                    if (active) store.getState().setChapter(next.id);
-                    // Refused (still a click target): stay on the chapter.
-                    if (!session.run('Delete chapter', removeChapter(chapter.id)) && active)
-                      store.getState().setChapter(chapter.id);
-                  }}
+                  onClick={remove}
                 >
                   <Trash2 size={14} aria-hidden />
                 </button>
@@ -209,7 +266,11 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
           );
         })}
       </ol>
-      <button type="button" className="save-template icon-button" onClick={saveTemplate}>
+      <button
+        type="button"
+        className="save-template icon-button"
+        onClick={() => void saveTemplate()}
+      >
         <LayoutTemplate size={14} aria-hidden /> {t('saveAsTemplate')}
       </button>
     </section>

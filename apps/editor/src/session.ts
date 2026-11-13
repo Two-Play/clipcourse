@@ -10,6 +10,7 @@ import {
   prepareAsset,
   uniqueIdFactory,
   type EditorStore,
+  type ClipboardData,
   type ExecuteOptions,
   type Project,
   type Recipe,
@@ -108,6 +109,9 @@ export class EditorSession {
   }
 
   resolveAsset = (asset: Asset) => this.urls.get(asset);
+
+  /** Copied clips (Ctrl+C / Ctrl+X), for this editor tab. */
+  clipboard: ClipboardData | null = null;
 
   private noticeListeners = new Set<(message: string) => void>();
 

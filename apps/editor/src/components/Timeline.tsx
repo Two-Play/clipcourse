@@ -45,9 +45,11 @@ import {
   ZoomOut,
 } from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { addAssetClip, splitSelectionAtPlayhead } from '../actions.js';
+import { addAssetClip, pasteClipboard, splitSelectionAtPlayhead } from '../actions.js';
 import { useEditor, useSession } from '../context.js';
 import { clipLabel, displayTracks, formatTimecode, msToPx, pxToMs } from '../geometry.js';
+import { clipMenuItems, insertItems } from '../contextMenus.js';
+import { menuLabel, openContextMenu } from './ContextMenu.js';
 import { t } from '../i18n.js';
 
 export const HEADER_WIDTH = 190;
@@ -460,6 +462,40 @@ export function Timeline() {
                 data-lane-track-id={track.id}
                 data-lane-scope={scope}
                 onPointerDown={onLanePointerDown}
+                onContextMenu={(e) => {
+                  const keyboard = e.clientX === 0 && e.clientY === 0;
+                  const time = keyboard
+                    ? store.getState().playhead
+                    : Math.max(0, timeAt(e.clientX));
+                  openContextMenu(e, menuLabel(t('menuTrack')), [
+                    {
+                      label: t('paste'),
+                      shortcut: 'Ctrl+V',
+                      disabled: !session.clipboard,
+                      onSelect: () =>
+                        pasteClipboard(session, {
+                          time,
+                          ...(scope === 'chapter' ? { trackId: track.id } : {}),
+                        }),
+                    },
+                    ...(scope === 'chapter'
+                      ? insertItems(session, { time, trackId: track.id })
+                      : []),
+                    {
+                      label: t('markerHere'),
+                      separatorBefore: true,
+                      onSelect: () =>
+                        session.run(
+                          'Add marker',
+                          addMarker(chapter.id, {
+                            id: session.newId('marker'),
+                            time,
+                            title: `Marker ${(chapter.markers?.length ?? 0) + 1}`,
+                          }),
+                        ),
+                    },
+                  ]);
+                }}
                 onDragOver={(e) => onDragOver(e, track.id)}
                 onDragLeave={() => setDropTarget(null)}
                 onDrop={(e) => onDrop(e, track.id)}
@@ -481,6 +517,13 @@ export function Timeline() {
                       aria-label={`${clipLabel(clip, course)}, ${formatTimecode(clip.start)} – ${formatTimecode(clip.start + clip.duration)}${scope === 'course' ? `, ${t('allChapters')}` : ''}`}
                       title={clipLabel(clip, course)}
                       onPointerDown={(e) => onClipPointerDown(e, clip, scope)}
+                      onContextMenu={(e) =>
+                        openContextMenu(
+                          e,
+                          menuLabel(t('menuClip')),
+                          clipMenuItems(session, clip.id),
+                        )
+                      }
                       onKeyDown={(e) => onClipKeyDown(e, clip)}
                     >
                       <span className="tl-clip-handle tl-clip-handle-start" aria-hidden="true" />
@@ -562,8 +605,44 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
   const name = track.name ?? 'Track';
   const exec = (label: string, recipe: Recipe) => session.run(label, recipe);
 
+  const deleteTrack = () =>
+    exec('Delete track', (draft) => {
+      removeTrack(track.id)(draft);
+      pruneCourseLayer()(draft);
+    });
+  const onContextMenu = (e: React.MouseEvent) =>
+    openContextMenu(e, menuLabel(t('menuTrack')), [
+      { label: t('renameTrack'), onSelect: () => setEditing(true) },
+      {
+        label: track.hidden ? t('showTrack') : t('hideTrack'),
+        onSelect: () => exec('Toggle visibility', updateTrack(track.id, { hidden: !track.hidden })),
+      },
+      {
+        label: track.muted ? t('unmuteTrack') : t('muteTrack'),
+        onSelect: () => exec('Toggle mute', updateTrack(track.id, { muted: !track.muted })),
+      },
+      {
+        label: t('moveTrackUp'),
+        disabled: index >= count - 1,
+        onSelect: () => exec('Move track', moveTrack(track.id, index + 1)),
+        separatorBefore: true,
+      },
+      {
+        label: t('moveTrackDown'),
+        disabled: index <= 0,
+        onSelect: () => exec('Move track', moveTrack(track.id, index - 1)),
+      },
+      {
+        label: t('deleteTrack'),
+        danger: true,
+        disabled: scope === 'chapter' && count <= 1,
+        onSelect: deleteTrack,
+        separatorBefore: true,
+      },
+    ]);
+
   return (
-    <div className="tl-header">
+    <div className="tl-header" onContextMenu={onContextMenu}>
       {editing ? (
         <input
           className="tl-track-name-input"
@@ -641,12 +720,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
             aria-label={t('deleteTrack')}
             title={t('deleteTrack')}
             disabled={scope === 'chapter' && count <= 1}
-            onClick={() =>
-              exec('Delete track', (draft) => {
-                removeTrack(track.id)(draft);
-                pruneCourseLayer()(draft);
-              })
-            }
+            onClick={deleteTrack}
           >
             <Trash2 size={14} aria-hidden />
           </button>

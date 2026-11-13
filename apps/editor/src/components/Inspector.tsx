@@ -38,6 +38,7 @@ import { useEditor, useSession } from '../context.js';
 import { t } from '../i18n.js';
 import { ActionFields } from './ActionFields.js';
 import { ColorField } from './ColorField.js';
+import { StageFormatField } from './StageFormatField.js';
 import { cleanQuestion, KIND_LABEL, QuestionEditor } from './QuestionEditor.js';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 
@@ -685,6 +686,7 @@ function ChapterInspector() {
             store.getState().execute('Course language', setCourseProps({ language: v }))
           }
         />
+        <StageFormatField key={`${course.stage.width}x${course.stage.height}`} />
         <SelectField
           label={t('completionRule')}
           value={course.completion?.mode ?? 'required'}

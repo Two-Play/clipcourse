@@ -8,6 +8,8 @@ import type { Frame, VisualClip } from '@clipcourse/format';
 import { evaluate, injectStyles, Stage, themeVariables } from '@clipcourse/player';
 import { themeOf } from '@clipcourse/format';
 import { QuizStagePreview } from './QuizStagePreview.js';
+import { menuLabel, openContextMenu } from './ContextMenu.js';
+import { clipMenuItems, stageMenuItems } from '../contextMenus.js';
 import {
   useEffect,
   useLayoutEffect,
@@ -206,6 +208,25 @@ export function StageView() {
           aria-label={t('stage')}
           tabIndex={0}
           onPointerDown={onOverlayPointerDown}
+          onContextMenu={(event) => {
+            const s = store.getState();
+            const keyboard = event.clientX === 0 && event.clientY === 0;
+            let target: string | null = keyboard ? (s.selection[0] ?? null) : null;
+            const p = keyboard
+              ? { x: stageWidth / 2, y: stageHeight / 2 }
+              : toStage(event.clientX, event.clientY);
+            if (!keyboard) {
+              target =
+                hitTest(s.course, s.course.chapters.indexOf(selectChapter(s)), s.playhead, p.x, p.y)
+                  ?.id ?? null;
+            }
+            if (target)
+              openContextMenu(event, menuLabel(t('menuClip')), clipMenuItems(session, target));
+            else {
+              s.select([]);
+              openContextMenu(event, menuLabel(t('menuStage')), stageMenuItems(session, p));
+            }
+          }}
           onKeyDown={onKeyDown}
           data-testid="stage-overlay"
         >

@@ -5,6 +5,8 @@ import { AiBridge } from './ai-bridge.js';
 import { AiDialog, AiStatus } from './components/AiDialog.js';
 import { AssetPanel } from './components/AssetPanel.js';
 import { ChapterPanel } from './components/ChapterPanel.js';
+import { ContextMenuHost } from './components/ContextMenu.js';
+import { Splitter, usePanelSizes } from './components/Splitter.js';
 import { GlossaryPanel, PopupPanel } from './components/CoursePanels.js';
 import { ExportDialog } from './components/ExportDialog.js';
 import { Inspector } from './components/Inspector.js';
@@ -29,6 +31,9 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
     setPreview(true);
   };
   const [message, setMessage] = useState<string | null>(notice ?? null);
+  const layout = usePanelSizes();
+  const measure = (selector: string, axis: 'width' | 'height') => () =>
+    document.querySelector(selector)?.getBoundingClientRect()[axis] ?? 0;
   useEffect(() => {
     const unsubscribe = session.subscribeNotices(setMessage);
     return () => {
@@ -41,7 +46,7 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
 
   return (
     <SessionProvider session={session}>
-      <div className="app">
+      <div className="app" style={layout.style}>
         <QuickAccessBar
           onPreview={openPreview}
           onAi={() => setPairing(true)}
@@ -57,8 +62,13 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
           onMessage={setMessage}
           panels={panels}
           onTogglePanel={(panel) => setPanels((p) => ({ ...p, [panel]: !p[panel] }))}
+          onResetLayout={() => {
+            layout.reset();
+            setPanels({ sidebar: true, inspector: true });
+          }}
         />
         <AiStatus bridge={bridge} />
+        <ContextMenuHost />
         {message && (
           <div className="notice" role="status">
             <span>{message}</span>
@@ -87,8 +97,32 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
             <StageView />
           </section>
           {panels.inspector && <Inspector />}
+          {panels.sidebar && (
+            <Splitter
+              panel="sidebar"
+              size={layout.sizes.sidebar}
+              measure={measure('.sidebar', 'width')}
+              onResize={(v) => layout.set('sidebar', v)}
+            />
+          )}
+          {panels.inspector && (
+            <Splitter
+              panel="inspector"
+              size={layout.sizes.inspector}
+              measure={measure('.inspector', 'width')}
+              onResize={(v) => layout.set('inspector', v)}
+            />
+          )}
         </main>
-        <Timeline />
+        <div className="timeline-wrap">
+          <Splitter
+            panel="timeline"
+            size={layout.sizes.timeline}
+            measure={measure('.app > .timeline-wrap > .timeline', 'height')}
+            onResize={(v) => layout.set('timeline', v)}
+          />
+          <Timeline />
+        </div>
         <footer className="statusbar">{t('shortcuts')}</footer>
         {preview && <PreviewDialog onClose={() => setPreview(false)} />}
         {exporting && <ExportDialog onClose={() => setExporting(false)} />}

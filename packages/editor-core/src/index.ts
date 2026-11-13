@@ -15,3 +15,4 @@ export * from './questions.js';
 export * from './references.js';
 export * from './blocks.js';
 export * from './course-templates.js';
+export * from './clipboard.js';

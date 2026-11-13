@@ -24,6 +24,7 @@ import {
   setChapterProps,
   setTheme,
   setThemeColor,
+  STAGE_PRESETS,
   updateClip,
   type ChapterTemplate,
   type Project,
@@ -51,6 +52,8 @@ import {
   FilePlus,
   FolderOpen,
   Highlighter,
+  LayoutDashboard,
+  RectangleHorizontal,
   CircleHelp,
   MousePointerClick,
   ListChecks,
@@ -104,6 +107,7 @@ import { t, type MessageKey } from '../i18n.js';
 import { probeMediaDuration } from '../session.js';
 import { KIND_LABEL } from './QuestionEditor.js';
 import { NewCourseDialog, ThemeSwatch } from './NewCourseDialog.js';
+import { applyStageSize } from './StageFormatField.js';
 import {
   Ribbon,
   RibbonButton,
@@ -121,6 +125,7 @@ export interface RibbonActions {
   onMessage: (message: string) => void;
   panels: { sidebar: boolean; inspector: boolean };
   onTogglePanel: (panel: 'sidebar' | 'inspector') => void;
+  onResetLayout?: () => void;
 }
 
 const TYPE_LABEL: Record<Clip['type'], MessageKey> = {
@@ -655,6 +660,31 @@ export function EditorRibbon(props: RibbonActions) {
               ))}
             </div>
           </RibbonGroup>
+          <RibbonGroup label={t('stageFormat')}>
+            <RibbonMenu
+              icon={RectangleHorizontal}
+              label={`${course.stage.width}×${course.stage.height}`}
+              items={[
+                ...STAGE_PRESETS.map((p) => ({
+                  label: `${p.name} (${p.width}×${p.height})`,
+                  selected: course.stage.width === p.width && course.stage.height === p.height,
+                  onSelect: () => applyStageSize(session, p.width, p.height),
+                })),
+                {
+                  label: `${t('stageCustom')}…`,
+                  separatorBefore: true,
+                  onSelect: () => {
+                    store.getState().select([]);
+                    requestAnimationFrame(() =>
+                      document
+                        .querySelector<HTMLElement>('.inspector .stage-format select')
+                        ?.focus(),
+                    );
+                  },
+                },
+              ]}
+            />
+          </RibbonGroup>
           <RibbonGroup label={t('groupThemeColors')}>
             {(['accent', 'text', 'background'] as const).map((role) => (
               <RibbonColor
@@ -728,6 +758,12 @@ export function EditorRibbon(props: RibbonActions) {
               label={t('panelProperties')}
               pressed={props.panels.inspector}
               onClick={() => props.onTogglePanel('inspector')}
+            />
+            <RibbonButton
+              icon={LayoutDashboard}
+              label={t('resetLayout')}
+              disabled={!props.onResetLayout}
+              onClick={() => props.onResetLayout?.()}
             />
           </RibbonGroup>
         </>

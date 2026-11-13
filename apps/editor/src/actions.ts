@@ -23,6 +23,8 @@ import {
   splitClip,
   DEFAULT_CLIP_DURATION,
   createQuestion,
+  copyClips,
+  pasteClips,
 } from '@clipcourse/editor-core';
 import type { AnimationType, Chapter, ClipType, QuestionKind, TextStyle } from '@clipcourse/format';
 import { t } from './i18n.js';
@@ -316,4 +318,45 @@ export function editTextStyle(
       })(draft),
     { mergeKey: `${clipId}:${label}` },
   );
+}
+
+// --- Clipboard ----------------------------------------------------------------------------
+
+export function copySelection(session: EditorSession): boolean {
+  const { course, selection } = session.store.getState();
+  const data = copyClips(course, selection);
+  if (!data) return false;
+  session.clipboard = data;
+  return true;
+}
+
+export function cutSelection(session: EditorSession) {
+  if (copySelection(session)) deleteSelection(session);
+}
+
+/**
+ * Pastes the clipboard into the current chapter at `time` (default: the
+ * playhead), optionally on a track or at a stage position. Selects the copies.
+ */
+export function pasteClipboard(
+  session: EditorSession,
+  where: { time?: number; trackId?: string; at?: { x: number; y: number } } = {},
+) {
+  const data = session.clipboard;
+  if (!data) return;
+  const state = session.store.getState();
+  const chapter = selectChapter(state);
+  let pasted: string[] = [];
+  const ok = session.run(
+    'Paste',
+    pasteClips(data, {
+      chapterId: chapter.id,
+      time: where.time ?? state.playhead,
+      ...(where.trackId ? { trackId: where.trackId } : {}),
+      ...(where.at ? { at: where.at } : {}),
+      newId: (p) => session.newId(p),
+      onPasted: (ids) => (pasted = ids),
+    }),
+  );
+  if (ok) session.store.getState().select(pasted);
 }

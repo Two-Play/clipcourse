@@ -23,6 +23,7 @@ import { themeOf as themeOfCourse, themePreset, THEME_PRESETS } from '@clipcours
 import { validateCourse } from '@clipcourse/format/validation';
 import { current, isDraft } from 'immer';
 import * as cmd from './commands.js';
+import { setStageSize } from './clipboard.js';
 import {
   collectIds,
   COURSE_LAYER_DURATION,
@@ -139,6 +140,7 @@ export type Operation =
   | { op: 'delete_glossary_entry'; entryId: string }
   | { op: 'set_theme'; preset: string; accent?: string; useBackground?: boolean }
   | { op: 'set_theme_color'; role: ThemeRole; color: string }
+  | { op: 'set_stage_size'; width: number; height: number }
   | { op: 'undo' }
   | { op: 'redo' };
 
@@ -602,6 +604,10 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
           cmd.setThemeColor(operation.role, operation.color)(d);
         };
         message = `Theme color "${operation.role}" changed`;
+        break;
+      case 'set_stage_size':
+        recipe = setStageSize(operation.width, operation.height);
+        message = `Stage is now ${Math.round(operation.width)}×${Math.round(operation.height)}; all clips were scaled`;
         break;
       case 'set_completion':
         recipe = cmd.setCompletion(operation.mode);

@@ -540,6 +540,16 @@ export function createServer(options: ServerOptions): McpServer {
   );
 
   op(
+    'set_stage_size',
+    'Changes the stage size (e.g. 1920×1080 for 16:9, 1080×1920 for portrait). Every clip is scaled with it (position, size, font size, lines); with another aspect ratio the content is fitted and centred.',
+    {
+      width: z.number().int().min(16).max(8192),
+      height: z.number().int().min(16).max(8192),
+    },
+    (a) => ({ op: 'set_stage_size', width: a.width, height: a.height }),
+  );
+
+  op(
     'set_course',
     'Changes course title, language or stage background.',
     {
