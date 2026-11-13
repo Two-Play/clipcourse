@@ -11,7 +11,8 @@
     "build": "pnpm --filter @clipcourse/scorm-runtime build && vite build",
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "test:lms": "pnpm --filter @clipcourse/scorm-runtime build && playwright test -c playwright.lms.config.ts"
   },
   "dependencies": {
     "@clipcourse/editor-core": "workspace:*",

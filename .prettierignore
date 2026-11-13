@@ -7,3 +7,4 @@ LICENSE
 **/LICENSE
 THIRD_PARTY_LICENSES.md
 packages/format/schema/*.json
+.lms/
