@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Clipcourse Player Demo</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #0b0d12;
+        color: #e5e7eb;
+        font:
+          14px/1.4 system-ui,
+          sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        padding: 8px 16px;
+        flex-wrap: wrap;
+      }
+      header h1 {
+        font-size: 16px;
+        margin: 0;
+      }
+      header a,
+      header button {
+        color: #9cc0ff;
+        background: none;
+        border: 1px solid #334;
+        border-radius: 6px;
+        padding: 4px 10px;
+        font: inherit;
+        cursor: pointer;
+        text-decoration: none;
+      }
+      #status {
+        margin-left: auto;
+        font-family: ui-monospace, monospace;
+        color: #a1a7b3;
+      }
+      main {
+        flex: 1;
+        min-height: 0;
+        padding: 0 16px 16px;
+      }
+      #player {
+        width: 100%;
+        height: 100%;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      #errors {
+        white-space: pre-wrap;
+        color: #ffb4ab;
+        padding: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Clipcourse Player Demo</h1>
+      <button type="button" id="reset">Reset progress</button>
+      <span id="status" aria-live="off"></span>
+    </header>
+    <main>
+      <div id="player"></div>
+      <div id="errors" role="alert"></div>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

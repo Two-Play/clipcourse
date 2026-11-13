@@ -1,0 +1,20 @@
+{
+  "name": "@clipcourse/player-demo",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Development harness that plays example courses with the Clipcourse player",
+  "author": "Philippe",
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@clipcourse/format": "workspace:*",
+    "@clipcourse/player": "workspace:*"
+  }
+}
