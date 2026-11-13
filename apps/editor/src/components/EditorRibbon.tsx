@@ -51,6 +51,7 @@ import {
   FilePlus,
   FolderOpen,
   Highlighter,
+  LayoutDashboard,
   CircleHelp,
   MousePointerClick,
   ListChecks,
@@ -121,6 +122,7 @@ export interface RibbonActions {
   onMessage: (message: string) => void;
   panels: { sidebar: boolean; inspector: boolean };
   onTogglePanel: (panel: 'sidebar' | 'inspector') => void;
+  onResetLayout?: () => void;
 }
 
 const TYPE_LABEL: Record<Clip['type'], MessageKey> = {
@@ -728,6 +730,12 @@ export function EditorRibbon(props: RibbonActions) {
               label={t('panelProperties')}
               pressed={props.panels.inspector}
               onClick={() => props.onTogglePanel('inspector')}
+            />
+            <RibbonButton
+              icon={LayoutDashboard}
+              label={t('resetLayout')}
+              disabled={!props.onResetLayout}
+              onClick={() => props.onResetLayout?.()}
             />
           </RibbonGroup>
         </>
