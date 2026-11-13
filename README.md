@@ -132,7 +132,7 @@ create, review and export courses in project folders you allow. See
 
 ```jsonc
 {
-  "formatVersion": 3,
+  "formatVersion": 4,
   "id": "my_course",
   "title": "My course",
   "language": "en",
@@ -168,8 +168,8 @@ create, review and export courses in project folders you allow. See
 The full definition is in
 [`packages/format/src/types.ts`](packages/format/src/types.ts). There is also a
 generated JSON schema in
-[`packages/format/schema/course.v3.schema.json`](packages/format/schema/course.v3.schema.json).
-Older documents (version 1 and 2) are migrated automatically when opened.
+[`packages/format/schema/course.v4.schema.json`](packages/format/schema/course.v4.schema.json).
+Older documents (versions 1 to 3) are migrated automatically when opened.
 All times are integer milliseconds and all positions are logical stage
 pixels. The player scales the stage to fit and keeps its aspect ratio.
 

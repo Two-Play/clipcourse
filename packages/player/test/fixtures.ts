@@ -22,7 +22,7 @@ export function chapter(
 
 export function course(chapters: Chapter[], extra: Partial<Course> = {}): Course {
   return {
-    formatVersion: 3,
+    formatVersion: 4,
     id: 'c',
     title: 'Course',
     language: 'en',
