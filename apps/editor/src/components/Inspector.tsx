@@ -16,6 +16,7 @@ import {
   selectChapter,
   setAssessment,
   setChapterProps,
+  setCompletion,
   setCourseProps,
   setQuiz,
   updateClip,
@@ -35,6 +36,7 @@ import { useEffect, useId, useState, type ReactNode } from 'react';
 import { setQuizFocus } from '../quizFocus.js';
 import { useEditor, useSession } from '../context.js';
 import { t } from '../i18n.js';
+import { ActionFields } from './ActionFields.js';
 import { cleanQuestion, KIND_LABEL, QuestionEditor } from './QuestionEditor.js';
 import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 
@@ -200,7 +202,8 @@ function ClipInspector({ clip }: { clip: Clip }) {
       .execute(`Edit ${field}`, updateClip(clip.id, update), { mergeKey: `${clip.id}:${field}` });
   const editStyle = (field: keyof TextStyle, value: TextStyle[keyof TextStyle]) =>
     edit(field, (c) => {
-      if (c.type === 'text' || c.type === 'box') c.style = { ...c.style, [field]: value };
+      if (c.type === 'text' || c.type === 'box' || c.type === 'button')
+        c.style = { ...c.style, [field]: value };
     });
 
   const assetsOf = (kind: string) =>
@@ -253,7 +256,7 @@ function ClipInspector({ clip }: { clip: Clip }) {
         clip.type !== 'shape' && (
           <fieldset>
             <legend>{t('text')}</legend>
-            {(clip.type === 'text' || clip.type === 'box') && (
+            {(clip.type === 'text' || clip.type === 'box' || clip.type === 'button') && (
               <TextField
                 label={t('text')}
                 multiline
@@ -261,7 +264,11 @@ function ClipInspector({ clip }: { clip: Clip }) {
                 onChange={(v) =>
                   edit(
                     'text',
-                    (c) => void ((c.type === 'text' || c.type === 'box') && (c.text = v)),
+                    (c) =>
+                      void (
+                        (c.type === 'text' || c.type === 'box' || c.type === 'button') &&
+                        (c.text = v)
+                      ),
                   )
                 }
               />
@@ -277,7 +284,7 @@ function ClipInspector({ clip }: { clip: Clip }) {
                 onChange={(v) => edit('role', (c) => void (c.type === 'text' && (c.role = v)))}
               />
             )}
-            {(clip.type === 'text' || clip.type === 'box') && (
+            {(clip.type === 'text' || clip.type === 'box' || clip.type === 'button') && (
               <>
                 <NumberField
                   label={t('fontSize')}
@@ -345,7 +352,7 @@ function ClipInspector({ clip }: { clip: Clip }) {
           </fieldset>
         )}
 
-      {(clip.type === 'box' || clip.type === 'shape') && (
+      {(clip.type === 'box' || clip.type === 'shape' || clip.type === 'button') && (
         <fieldset>
           <legend>{t('fill')}</legend>
           {clip.type === 'shape' && (
@@ -363,7 +370,14 @@ function ClipInspector({ clip }: { clip: Clip }) {
             label={t('fill')}
             value={clip.fill}
             onChange={(v) =>
-              edit('fill', (c) => void ((c.type === 'box' || c.type === 'shape') && (c.fill = v)))
+              edit(
+                'fill',
+                (c) =>
+                  void (
+                    (c.type === 'box' || c.type === 'shape' || c.type === 'button') &&
+                    (c.fill = v)
+                  ),
+              )
             }
           />
           <ColorField
@@ -372,7 +386,11 @@ function ClipInspector({ clip }: { clip: Clip }) {
             onChange={(v) =>
               edit(
                 'stroke',
-                (c) => void ((c.type === 'box' || c.type === 'shape') && (c.stroke = v)),
+                (c) =>
+                  void (
+                    (c.type === 'box' || c.type === 'shape' || c.type === 'button') &&
+                    (c.stroke = v)
+                  ),
               )
             }
           />
@@ -384,7 +402,11 @@ function ClipInspector({ clip }: { clip: Clip }) {
             onCommit={(v) =>
               edit(
                 'strokeWidth',
-                (c) => void ((c.type === 'box' || c.type === 'shape') && (c.strokeWidth = v)),
+                (c) =>
+                  void (
+                    (c.type === 'box' || c.type === 'shape' || c.type === 'button') &&
+                    (c.strokeWidth = v)
+                  ),
               )
             }
           />
@@ -466,6 +488,8 @@ function ClipInspector({ clip }: { clip: Clip }) {
         </fieldset>
       )}
 
+      {clip.type !== 'audio' && clip.type !== 'question' && <ActionFields clip={clip} />}
+
       {clip.type !== 'audio' && (
         <fieldset>
           <legend>{t('animation')}</legend>
@@ -522,7 +546,7 @@ function ClipInspector({ clip }: { clip: Clip }) {
                 })
               }
             />
-            {(clip.type === 'box' || clip.type === 'shape') && (
+            {(clip.type === 'box' || clip.type === 'shape' || clip.type === 'button') && (
               <NumberField
                 label={t('radius')}
                 min={0}
@@ -530,7 +554,11 @@ function ClipInspector({ clip }: { clip: Clip }) {
                 onCommit={(v) =>
                   edit(
                     'radius',
-                    (c) => void ((c.type === 'box' || c.type === 'shape') && (c.radius = v)),
+                    (c) =>
+                      void (
+                        (c.type === 'box' || c.type === 'shape' || c.type === 'button') &&
+                        (c.radius = v)
+                      ),
                   )
                 }
               />
@@ -626,6 +654,25 @@ function ChapterInspector() {
               .execute('Change transition', setChapterProps(chapter.id, { transition: { mode } }))
           }
         />
+        {course.completion?.mode === 'goal' ? (
+          <CheckField
+            label={t('chapterGoal')}
+            checked={chapter.goal === true}
+            onChange={(v) =>
+              store.getState().execute('Goal chapter', setChapterProps(chapter.id, { goal: v }))
+            }
+          />
+        ) : (
+          <CheckField
+            label={t('chapterOptional')}
+            checked={chapter.optional === true}
+            onChange={(v) =>
+              store
+                .getState()
+                .execute('Optional chapter', setChapterProps(chapter.id, { optional: v }))
+            }
+          />
+        )}
         <ColorField
           label={t('background')}
           value={chapter.background ?? course.stage.background}
@@ -655,6 +702,15 @@ function ChapterInspector() {
           onCommit={(v) =>
             store.getState().execute('Course language', setCourseProps({ language: v }))
           }
+        />
+        <SelectField
+          label={t('completionRule')}
+          value={course.completion?.mode ?? 'required'}
+          options={[
+            { value: 'required', label: t('completionRequired') },
+            { value: 'goal', label: t('completionGoal') },
+          ]}
+          onChange={(mode) => store.getState().execute('Completion rule', setCompletion(mode))}
         />
         <CheckField
           label={t('useScore')}

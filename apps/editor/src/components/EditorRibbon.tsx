@@ -51,6 +51,7 @@ import {
   FolderOpen,
   Highlighter,
   CircleHelp,
+  MousePointerClick,
   ListChecks,
   ImagePlus,
   Layers,
@@ -130,6 +131,7 @@ const TYPE_LABEL: Record<Clip['type'], MessageKey> = {
   highlight: 'clipLabelHighlight',
   progress: 'clipLabelProgress',
   question: 'clipLabelQuestion',
+  button: 'clipLabelButton',
 };
 
 const COLLAPSED_KEY = 'clipcourse:ribbon-collapsed';
@@ -335,6 +337,11 @@ export function EditorRibbon(props: RibbonActions) {
         onClick={() => addClipAt(session, 'highlight')}
       />
       <RibbonMenu icon={CircleHelp} label={t('insertQuestion')} items={questionItems} />
+      <RibbonButton
+        icon={MousePointerClick}
+        label={t('addButton')}
+        onClick={() => addClipAt(session, 'button')}
+      />
     </RibbonGroup>
   );
 
@@ -563,7 +570,7 @@ export function EditorRibbon(props: RibbonActions) {
                   const next =
                     course.chapters[chapterIndex + 1] ?? course.chapters[chapterIndex - 1]!;
                   store.getState().setChapter(next.id);
-                  exec('Delete chapter', removeChapter(chapter.id));
+                  session.run('Delete chapter', removeChapter(chapter.id));
                 }}
               />
             </RibbonStack>

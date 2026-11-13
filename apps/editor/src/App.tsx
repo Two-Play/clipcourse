@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { X } from 'lucide-react';
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AiBridge } from './ai-bridge.js';
 import { AiDialog, AiStatus } from './components/AiDialog.js';
 import { AssetPanel } from './components/AssetPanel.js';
 import { ChapterPanel } from './components/ChapterPanel.js';
+import { GlossaryPanel, PopupPanel } from './components/CoursePanels.js';
 import { ExportDialog } from './components/ExportDialog.js';
 import { Inspector } from './components/Inspector.js';
 import { PreviewDialog } from './components/PreviewDialog.js';
@@ -28,6 +29,12 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
     setPreview(true);
   };
   const [message, setMessage] = useState<string | null>(notice ?? null);
+  useEffect(() => {
+    const unsubscribe = session.subscribeNotices(setMessage);
+    return () => {
+      unsubscribe();
+    };
+  }, [session]);
   usePlayback(session);
   useShortcuts(session, !preview && !exporting && !pairing);
   useAutosave(session);
@@ -72,6 +79,8 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
             <div className="sidebar">
               <ChapterPanel onMessage={setMessage} />
               <AssetPanel />
+              <PopupPanel />
+              <GlossaryPanel />
             </div>
           )}
           <section className="stage-area" aria-label={t('stage')}>
