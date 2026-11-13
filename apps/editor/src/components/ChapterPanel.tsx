@@ -11,6 +11,7 @@ import {
 } from '@clipcourse/editor-core';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { insertTemplate, saveChapterAsTemplate } from '../actions.js';
+import { MenuPopover } from './Popover.js';
 import { useEditor, useSession } from '../context.js';
 import { formatTimecode } from '../geometry.js';
 import { t } from '../i18n.js';
@@ -23,7 +24,8 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
   const course = useEditor((s) => s.course);
   const [editing, setEditing] = useState<string | null>(null);
   const [userTemplates, setUserTemplates] = useState<ChapterTemplate[]>([]);
-  const menuRef = useRef<HTMLDetailsElement>(null);
+  const menuRef = useRef<HTMLButtonElement>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const reloadTemplates = useCallback(
     async () => setUserTemplates(await storage.listTemplates()),
@@ -33,10 +35,11 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
     void reloadTemplates();
   }, [reloadTemplates]);
 
-  const choose = (template: ChapterTemplate) => {
-    insertTemplate(session, template);
-    if (menuRef.current) menuRef.current.open = false;
-  };
+  // Keep the open chapter visible in the list.
+  const listRef = useRef<HTMLOListElement>(null);
+  useEffect(() => {
+    listRef.current?.querySelector('.chapter-item.is-active')?.scrollIntoView({ block: 'nearest' });
+  }, [chapterId]);
 
   const saveTemplate = async () => {
     const current = chapters.find((c) => c.id === chapterId)!;
@@ -51,32 +54,36 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
     <section className="chapters" aria-label={t('chapters')}>
       <div className="panel-title">
         <h2>{t('chapters')}</h2>
-        <details className="menu" ref={menuRef}>
-          <summary className="button icon-button">
-            <Plus size={14} aria-hidden /> {t('addChapter')}
-          </summary>
-          <div className="menu-popup" role="menu">
-            <p className="menu-heading">{t('templates')}</p>
-            {builtInTemplates(course).map((template) => (
-              <button
-                key={template.id}
-                type="button"
-                role="menuitem"
-                onClick={() => choose(template)}
-              >
-                {template.name}
-              </button>
-            ))}
-            {userTemplates.length > 0 && <p className="menu-heading">{t('myTemplates')}</p>}
-            {userTemplates.map((template) => (
-              <div key={template.id} className="menu-row">
-                <button type="button" role="menuitem" onClick={() => choose(template)}>
-                  {template.name}
-                </button>
+        <button
+          ref={menuRef}
+          type="button"
+          className="icon-button"
+          aria-haspopup="menu"
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((o) => !o)}
+        >
+          <Plus size={14} aria-hidden /> {t('addChapter')}
+        </button>
+        <MenuPopover
+          anchor={menuRef}
+          open={menuOpen}
+          onClose={() => setMenuOpen(false)}
+          label={t('addChapter')}
+          items={[
+            ...builtInTemplates(course).map((template) => ({
+              label: template.name,
+              onSelect: () => insertTemplate(session, template),
+            })),
+            ...userTemplates.map((template, i) => ({
+              label: template.name,
+              onSelect: () => insertTemplate(session, template),
+              separatorBefore: i === 0,
+              aside: (
                 <button
                   type="button"
                   className="icon"
                   aria-label={`${t('deleteTemplate')}: ${template.name}`}
+                  title={t('deleteTemplate')}
                   onClick={async () => {
                     await storage.deleteTemplate(template.id);
                     await reloadTemplates();
@@ -84,13 +91,13 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                 >
                   <Trash2 size={14} aria-hidden />
                 </button>
-              </div>
-            ))}
-          </div>
-        </details>
+              ),
+            })),
+          ]}
+        />
       </div>
 
-      <ol className="chapter-list">
+      <ol className="chapter-list" ref={listRef}>
         {chapters.map((chapter, index) => {
           const active = chapter.id === chapterId;
           return (
