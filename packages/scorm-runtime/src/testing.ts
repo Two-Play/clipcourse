@@ -119,6 +119,7 @@ const SPECS: Record<ScormVersion, Spec> = {
 };
 
 const KNOWN_PREFIXES = [
+  'cmi.interactions',
   'cmi.core.',
   'cmi.suspend_data',
   'cmi.location',
@@ -186,6 +187,14 @@ function createCore(version: ScormVersion, record: LmsRecord) {
     if (spec.writeOnly.includes(element)) return (fail(spec.codes.writeOnly), '');
     if (!KNOWN_PREFIXES.some((p) => element.startsWith(p))) return (fail(spec.codes.unknown), '');
     lastError = '0';
+    if (element === 'cmi.interactions._count') {
+      const indexes = new Set(
+        Object.keys(values)
+          .map((k) => /^cmi\.interactions\.(\d+)\./.exec(k)?.[1])
+          .filter(Boolean),
+      );
+      return String(indexes.size);
+    }
     return values[element] ?? '';
   };
 
@@ -201,6 +210,29 @@ function createCore(version: ScormVersion, record: LmsRecord) {
     if (limit !== undefined && value.length > limit) return (fail(spec.codes.badValue), 'false');
     const vocab = spec.vocab[element];
     if (vocab && !vocab.includes(value)) return (fail(spec.codes.badValue), 'false');
+    const interaction = /^cmi\.interactions\.(\d+)\.(\w+)/.exec(element);
+    if (interaction) {
+      const [, index, field] = interaction;
+      const count = new Set(
+        Object.keys(values)
+          .map((k) => /^cmi\.interactions\.(\d+)\./.exec(k)?.[1])
+          .filter(Boolean),
+      ).size;
+      if (Number(index) > count) return (fail(version === '1.2' ? '201' : '351'), 'false');
+      const type = values[`cmi.interactions.${index}.type`];
+      if (
+        version === '1.2' &&
+        (field === 'student_response' || field === 'correct_responses') &&
+        (type === 'choice' || type === 'sequencing')
+      ) {
+        // CMIFeedback for choice/sequencing: single characters a-z, 0-9.
+        if (value !== '' && !/^[a-z0-9](,[a-z0-9])*$/.test(value)) return (fail('405'), 'false');
+      }
+    }
+    for (const scoreKey of ['cmi.core.score.raw', 'cmi.score.raw', 'cmi.score.scaled']) {
+      if (element === scoreKey && Number.isNaN(Number(value)))
+        return (fail(spec.codes.badValue), 'false');
+    }
     if (element === 'cmi.progress_measure') {
       const n = Number(value);
       if (!(n >= 0 && n <= 1)) return (fail('407'), 'false');
