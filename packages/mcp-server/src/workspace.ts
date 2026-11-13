@@ -140,10 +140,7 @@ export class Workspace {
     return project;
   }
 
-  create(
-    path: string,
-    options: { title?: string; language?: string; width?: number; height?: number },
-  ): ProjectTarget {
+  create(path: string, options: Parameters<typeof createProjectFolder>[1]): ProjectTarget {
     const dir = this.resolve(path);
     const project = new FolderProject(
       this.display(dir),

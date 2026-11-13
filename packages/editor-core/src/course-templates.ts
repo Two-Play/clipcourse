@@ -20,16 +20,22 @@ export interface CourseTemplate {
   description: string;
   /** Suggested theme preset. */
   theme: string;
-  create(newId: IdFactory, theme?: Theme): Course;
+  /** `size` is the stage size (default 1920×1080); the layout scales to it. */
+  create(newId: IdFactory, theme?: Theme, size?: { width: number; height: number }): Course;
 }
 
-function base(newId: IdFactory, title: string, theme: Theme): Course {
+function base(
+  newId: IdFactory,
+  title: string,
+  theme: Theme,
+  size: { width: number; height: number } = { width: 1920, height: 1080 },
+): Course {
   return {
     formatVersion: FORMAT_VERSION,
     id: newId('course'),
     title,
     language: 'en',
-    stage: { width: 1920, height: 1080, background: 'theme:background' },
+    stage: { width: size.width, height: size.height, background: 'theme:background' },
     theme: structuredClone(theme),
     assets: {},
     chapters: [],
@@ -44,8 +50,8 @@ const compliance: CourseTemplate = {
   description:
     'Introduction, rules, a case study with a choice, and a final quiz with a passing score of 80 %.',
   theme: 'corporate',
-  create(newId, theme = presetTheme('corporate')) {
-    const course = base(newId, 'Compliance training', theme);
+  create(newId, theme = presetTheme('corporate'), size) {
+    const course = base(newId, 'Compliance training', theme, size);
     const b = blocks(course, newId);
     const popupId = newId('popup');
     course.popups = [
@@ -197,8 +203,8 @@ const onboarding: CourseTemplate = {
   description:
     'Welcome, topic chapters with popups and a glossary, a knowledge check and a summary.',
   theme: 'light',
-  create(newId, theme = presetTheme('light')) {
-    const course = base(newId, 'Welcome aboard', theme);
+  create(newId, theme = presetTheme('light'), size) {
+    const course = base(newId, 'Welcome aboard', theme, size);
     const b = blocks(course, newId);
     const popupId = newId('popup');
     course.popups = [
@@ -291,8 +297,8 @@ const micro: CourseTemplate = {
   name: 'Micro lesson',
   description: 'One short chapter and three questions: about five minutes.',
   theme: 'nature',
-  create(newId, theme = presetTheme('nature')) {
-    const course = base(newId, 'Micro lesson', theme);
+  create(newId, theme = presetTheme('nature'), size) {
+    const course = base(newId, 'Micro lesson', theme, size);
     const b = blocks(course, newId);
     const tip = b.text('Tip: one idea per micro lesson.', AREA.subtitle, {
       align: 'center',

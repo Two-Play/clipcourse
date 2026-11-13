@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Short guide to the course format, served as an MCP resource. */
-export const FORMAT_GUIDE = `# Clipcourse course format (version 4)
+export const FORMAT_GUIDE = `# Clipcourse course format (version 5)
 
 ## Structure
 - A **course** has a title, a language, a **stage** (logical size, default 1920×1080, scaled to fit the screen) and **chapters**.
@@ -57,6 +57,15 @@ Every visual clip can have animations: { in: {type, duration}, out: {type, durat
   visible while the player waits for Continue). Mark side branches optional, or use the completion
   rule "goal" (set_completion) and mark the end chapters as goals.
 - Deleting a chapter, marker, popup or clip that a click action uses is refused; change the action first.
+
+## Design themes and templates
+- A course has a **theme** (list_themes, set_theme): colors per role and fonts. Use roles for clip
+  colors (\`theme:text\`, \`theme:surface\`, \`theme:accent\`, \`theme:onAccent\`, \`theme:muted\`, …)
+  so that switching the theme restyles the course. Fixed colors stay as they are.
+- Typical pairs: text \`theme:text\` on \`theme:background\` or \`theme:surface\`; button
+  \`theme:accent\` with text \`theme:onAccent\`. All built-in themes keep these readable (WCAG AA).
+- create_project can start from a course template (compliance, onboarding, micro); add_chapter
+  takes a chapter template (list_templates). Replace all placeholder text.
 
 ## Good practice
 - Learners must be able to read text: show it for at least 1 s plus 0.4 s per word.

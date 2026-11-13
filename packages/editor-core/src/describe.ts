@@ -91,7 +91,7 @@ function trackLines(tracks: Track[], course: Course, label: string): string[] {
 /** A readable outline of the whole course, or of one chapter. */
 export function describeTimeline(course: Course, chapterId?: string): string {
   const lines: string[] = [
-    `Course "${course.title}" {${course.id}}, ${course.language}, stage ${course.stage.width}×${course.stage.height}, ${course.chapters.length} chapter(s)${course.assessment ? `, passing score ${course.assessment.passingScore} %` : ''}${course.completion?.mode === 'goal' ? ', completed when a goal chapter is reached' : ''}`,
+    `Course "${course.title}" {${course.id}}, ${course.language}, stage ${course.stage.width}×${course.stage.height}, ${course.chapters.length} chapter(s)${course.assessment ? `, passing score ${course.assessment.passingScore} %` : ''}${course.completion?.mode === 'goal' ? ', completed when a goal chapter is reached' : ''}${course.theme ? `, theme ${course.theme.preset ?? 'custom'} (accent ${course.theme.colors.accent})` : ''}`,
   ];
   const chapters = chapterId ? course.chapters.filter((c) => c.id === chapterId) : course.chapters;
   if (chapterId && chapters.length === 0) throw new Error(`Unknown chapter "${chapterId}"`);
