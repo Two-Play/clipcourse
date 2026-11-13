@@ -273,3 +273,33 @@ test('mp4Duration ignores non-MP4 data', () => {
     6000,
   );
 });
+
+test('import_media by URL records the source and is off without a downloader', async () => {
+  const workspace = new Workspace({ roots: [root] });
+  const server = createServer({
+    workspace,
+    runtime: () => '',
+    download: async () => ({ fileName: 'cat.png', mime: 'image/png', data: new Uint8Array([1]) }),
+  });
+  const [a, b] = InMemoryTransport.createLinkedPair();
+  await server.connect(b);
+  const withDownloads = new Client({ name: 't', version: '1' });
+  await withDownloads.connect(a);
+  await withDownloads.callTool({ name: 'create_project', arguments: { path: 'web' } });
+  const result = (await withDownloads.callTool({
+    name: 'import_media',
+    arguments: { project: 'web', url: 'https://example.com/cat.png' },
+  })) as CallResult;
+  expect(JSON.parse(result.content[0]!.text).assetId).toBe('cat');
+  const course = JSON.parse(readFileSync(join(root, 'web', 'course.json'), 'utf8'));
+  expect(course.extensions['clipcourse.assetSources']).toEqual({
+    cat: 'https://example.com/cat.png',
+  });
+  await withDownloads.close();
+
+  // The default test client has no downloader: the url parameter does not exist.
+  const { tools } = await client.listTools();
+  expect(JSON.stringify(tools.find((t) => t.name === 'import_media')!.inputSchema)).not.toContain(
+    '"url"',
+  );
+});

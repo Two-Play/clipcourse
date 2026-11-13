@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
-import { useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { AiBridge } from './ai-bridge.js';
+import { AiDialog, AiStatus } from './components/AiDialog.js';
 import { AssetPanel } from './components/AssetPanel.js';
 import { ChapterPanel } from './components/ChapterPanel.js';
 import { ExportDialog } from './components/ExportDialog.js';
@@ -16,9 +18,12 @@ import type { EditorSession } from './session.js';
 export function App({ session, notice }: { session: EditorSession; notice?: string }) {
   const [preview, setPreview] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [pairing, setPairing] = useState(false);
+  const bridge = useMemo(() => new AiBridge(session), [session]);
+  const closePairing = useCallback(() => setPairing(false), []);
   const [message, setMessage] = useState<string | null>(notice ?? null);
   usePlayback(session);
-  useShortcuts(session, !preview && !exporting);
+  useShortcuts(session, !preview && !exporting && !pairing);
   useAutosave(session);
 
   return (
@@ -33,8 +38,10 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
             session.store.getState().setPlaying(false);
             setExporting(true);
           }}
+          onAi={() => setPairing(true)}
           onError={setMessage}
         />
+        <AiStatus bridge={bridge} />
         {message && (
           <div className="notice" role="status">
             <span>{message}</span>
@@ -62,6 +69,7 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
         <footer className="statusbar">{t('shortcuts')}</footer>
         {preview && <PreviewDialog onClose={() => setPreview(false)} />}
         {exporting && <ExportDialog onClose={() => setExporting(false)} />}
+        {pairing && <AiDialog bridge={bridge} onClose={closePairing} />}
       </div>
     </SessionProvider>
   );

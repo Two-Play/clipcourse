@@ -123,6 +123,11 @@ export class EditorSession {
     return this.filesVersion;
   }
 
+  /** Call after changing `files` directly (e.g. operations from the AI bridge). */
+  notifyFilesChanged() {
+    this.notifyFiles();
+  }
+
   private notifyFiles() {
     this.filesVersion++;
     for (const l of this.fileListeners) l();

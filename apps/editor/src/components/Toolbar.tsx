@@ -16,10 +16,12 @@ import { probeMediaDuration } from '../session.js';
 export function Toolbar({
   onPreview,
   onExport,
+  onAi,
   onError,
 }: {
   onPreview: () => void;
   onExport: () => void;
+  onAi: () => void;
   onError: (message: string) => void;
 }) {
   const session = useSession();
@@ -154,6 +156,9 @@ export function Toolbar({
         </button>
         <button type="button" onClick={onExport}>
           {t('exportScorm')}
+        </button>
+        <button type="button" onClick={onAi}>
+          ✦ {t('aiAssistant')}
         </button>
       </div>
     </header>
