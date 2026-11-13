@@ -82,8 +82,10 @@ test('a popup is a modal dialog: focus inside, Escape closes, focus returns, pla
 test('glossary terms open their definition; the contents list the glossary', () => {
   const course = withExtras();
   const tip = course.chapters[0]!.tracks[0]!.clips[2]!;
-  if (tip.type === 'box') tip.text = 'Take a branch now.';
-  tip.type === 'box' && (tip.startsHidden = false);
+  if (tip.type === 'box') {
+    tip.text = 'Take a branch now.';
+    tip.startsHidden = false;
+  }
   const { host } = setup(course);
   const term = host.querySelector<HTMLButtonElement>('[data-clip-id="tip"] .ccp-term')!;
   expect(term.textContent).toBe('branch');

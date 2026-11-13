@@ -25,3 +25,11 @@ export { injectStyles } from './dom/styles.js';
 export { answer, collectQuestions, computeScore, isCorrect, shuffled } from './core/quiz.js';
 export type { AnswerState, QuestionRef, Response, Score } from './core/quiz.js';
 export { renderQuestion } from './dom/question.js';
+export {
+  courseProgressMeasure,
+  createGlossaryMatcher,
+  isClipShown,
+  isCourseComplete,
+  visibilityTargets,
+  type TextPart,
+} from './core/interactions.js';
