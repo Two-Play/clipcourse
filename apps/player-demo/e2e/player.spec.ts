@@ -10,8 +10,9 @@ test.describe('playback', () => {
     await page.clock.runFor(1500);
     const s = await state(page);
     expect(s.status).toBe('playing');
-    expect(s.time).toBeGreaterThanOrEqual(1400);
-    expect(s.time).toBeLessThanOrEqual(1600);
+    // Within one animation frame of the requested time.
+    expect(s.time).toBeGreaterThanOrEqual(1480);
+    expect(s.time).toBeLessThanOrEqual(1520);
     await expect.poll(() => visibleText(page)).toEqual(['Bravo']);
   });
 

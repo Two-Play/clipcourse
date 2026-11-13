@@ -60,6 +60,8 @@ export async function openFixture(page: Page) {
   await page.clock.install();
   await page.goto('/?course=e2e');
   await page.getByRole('button', { name: 'Start' }).waitFor();
+  // Freeze time: from here on only page.clock.runFor() advances it.
+  await page.clock.pauseAt(Date.now() + 1000);
 }
 
 export const visibleText = (page: Page) => page.locator('.ccp-clip:visible').allTextContents();
