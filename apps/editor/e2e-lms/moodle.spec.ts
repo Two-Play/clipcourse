@@ -7,7 +7,7 @@
  *     pnpm --filter @clipcourse/editor test:lms
  */
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
-import { answerQuiz, buildPackage, revealHint } from './package.js';
+import { answerQuiz, buildPackage, expectLightTheme, revealHint } from './package.js';
 
 const url = process.env.MOODLE_URL;
 const user = process.env.MOODLE_USER ?? 'admin';
@@ -94,6 +94,7 @@ for (const version of ['1.2', '2004'] as const) {
       )
       .toBeGreaterThan(0);
     await expect(course.getByRole('button', { name: 'Continue' })).toBeVisible({ timeout: 10000 });
+    await expectLightTheme(course);
     await revealHint(course);
     await page.goto(viewUrl);
 

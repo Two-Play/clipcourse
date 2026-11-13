@@ -8,7 +8,7 @@
  * docs/lms-testing.md.
  */
 import { expect, test, type Frame, type Page } from '@playwright/test';
-import { answerQuiz, buildPackage, revealHint } from './package.js';
+import { answerQuiz, buildPackage, expectLightTheme, revealHint } from './package.js';
 
 const url = process.env.ILIAS_URL;
 const user = process.env.ILIAS_USER ?? 'root';
@@ -87,6 +87,7 @@ for (const version of ['1.2', '2004'] as const) {
       )
       .toBeGreaterThan(0);
     await expect(course.getByRole('button', { name: 'Continue' })).toBeVisible({ timeout: 10000 });
+    await expectLightTheme(course);
     await revealHint(course);
     await page.goto(`${url}/ilias.php?baseClass=ilrepositorygui&ref_id=1`);
     await page.waitForLoadState('networkidle');

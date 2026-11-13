@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { exportScorm, type ScormVersion } from '@clipcourse/exporter';
-import type { Course } from '@clipcourse/format';
+import { themePreset, type Course } from '@clipcourse/format';
 import { expect, type Frame, type FrameLocator } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
@@ -18,14 +18,15 @@ export function testCourse(id: string): Course {
     start: 0,
     duration: 1500,
     frame: { x: 160, y: 400, width: 1600, height: 200 },
-    style: { fontSize: 96, color: '#ffffff', align: 'center' as const },
+    style: { fontSize: 96, color: 'theme:text', align: 'center' as const },
   });
   return {
     formatVersion: 5,
     id,
     title: `Clipcourse LMS test ${id}`,
     language: 'en',
-    stage: { width: 1920, height: 1080, background: '#101522' },
+    stage: { width: 1920, height: 1080, background: 'theme:background' },
+    theme: structuredClone(themePreset('light')!.theme),
     assets: { logo: { kind: 'image', src: 'assets/logo.svg', mime: 'image/svg+xml', alt: 'Logo' } },
     chapters: [
       {
@@ -55,7 +56,7 @@ export function testCourse(id: string): Course {
                 start: 0,
                 duration: 1500,
                 frame: { x: 160, y: 650, width: 1600, height: 120 },
-                style: { fontSize: 64, color: '#ffd166', align: 'center' },
+                style: { fontSize: 64, color: 'theme:accent', align: 'center' },
               },
             ],
           },
@@ -127,6 +128,15 @@ export function testCourse(id: string): Course {
  * should store a score of 50 and "passed" (passing score 50 %).
  */
 /** Reveals the hint in chapter one (stored in the bookmark, checked after resume). */
+/** The light theme reached the LMS: stage background and theme variables. */
+export async function expectLightTheme(course: Frame | FrameLocator) {
+  await expect(course.locator('.ccp-stage')).toHaveCSS('background-color', 'rgb(247, 248, 250)');
+  await expect(course.getByRole('button', { name: 'Show the hint' })).toHaveCSS(
+    'background-color',
+    'rgb(29, 95, 209)',
+  );
+}
+
 export async function revealHint(course: Frame | FrameLocator) {
   await course.getByRole('button', { name: 'Show the hint' }).click();
   await expect(course.getByText('Hint revealed')).toBeVisible();
