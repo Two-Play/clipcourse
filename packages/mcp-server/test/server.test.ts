@@ -97,6 +97,7 @@ describe('tools', () => {
       'set_completion',
       'set_course',
       'set_quiz',
+      'set_stage_size',
       'set_theme',
       'set_theme_color',
       'split_clip',
@@ -452,6 +453,11 @@ describe('tools', () => {
       call('set_theme_color', { project: 'safety2', role: 'accent', color: 'theme:text' }),
     ).rejects.toThrow();
     await expect(call('create_project', { path: 'x', template: 'nope' })).rejects.toThrow();
+
+    // The stage format can change later; clips scale with it.
+    await call('set_stage_size', { project: 'safety2', width: 1080, height: 1920 });
+    const portrait = JSON.parse(readFileSync(join(root, 'safety2', 'course.json'), 'utf8'));
+    expect(portrait.stage).toMatchObject({ width: 1080, height: 1920 });
 
     // Small stages scale the template layout.
     await call('create_project', { path: 'small', template: 'micro', width: 960, height: 540 });
