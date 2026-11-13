@@ -18,6 +18,7 @@ export const fixtureCourse: Course = {
       title: 'First',
       duration: 3000,
       transition: { mode: 'wait' },
+      markers: [{ id: 'm1', time: 2000, title: 'Halfway' }],
       tracks: [
         {
           id: 't1',
