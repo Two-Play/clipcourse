@@ -81,6 +81,10 @@ importers:
       '@clipcourse/format':
         specifier: workspace:*
         version: link:../format
+    devDependencies:
+      immer:
+        specifier: 11.2.10
+        version: 11.2.10
 
 packages:
 

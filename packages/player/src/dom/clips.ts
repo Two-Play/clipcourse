@@ -18,13 +18,22 @@ export function createClipView(
   clip: Clip,
   assets: Record<string, Asset>,
   resolve: AssetResolver,
+  /** Returns an existing media element with this source to reuse, if any. */
+  reuseMedia: (tag: 'video' | 'audio', src: string) => HTMLMediaElement | null = () => null,
 ): ClipView {
+  const mediaElement = (tag: 'video' | 'audio', assetId: string) => {
+    const asset = assets[assetId];
+    const src = asset ? resolve(asset, assetId) : '';
+    const reused = src ? reuseMedia(tag, src) : null;
+    if (reused) return reused;
+    const el = doc.createElement(tag);
+    el.preload = 'auto';
+    if (src) el.src = src;
+    return el;
+  };
   if (clip.type === 'audio') {
-    const audio = doc.createElement('audio');
-    audio.preload = 'auto';
+    const audio = mediaElement('audio', clip.assetId);
     audio.className = 'ccp-audio';
-    const asset = assets[clip.assetId];
-    if (asset) audio.src = resolve(asset, clip.assetId);
     return { clip, root: audio, media: audio };
   }
 
@@ -88,10 +97,7 @@ export function createClipView(
       break;
     }
     case 'video': {
-      const video = doc.createElement('video');
-      const asset = assets[clip.assetId];
-      if (asset) video.src = resolve(asset, clip.assetId);
-      video.preload = 'auto';
+      const video = mediaElement('video', clip.assetId) as HTMLVideoElement;
       video.playsInline = true;
       video.disablePictureInPicture = true;
       video.style.objectFit = objectFit(clip.fit);

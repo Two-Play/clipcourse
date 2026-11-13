@@ -24,7 +24,10 @@ export class Stage {
   readonly element: HTMLElement;
   private readonly layer: HTMLElement;
   private readonly captionBox: HTMLElement;
-  private readonly course: Course;
+  private course: Course;
+  private forceRebuild = false;
+  /** Which clip a (possibly reused) media element currently belongs to. */
+  private mediaOwner = new WeakMap<HTMLMediaElement, string>();
   private readonly options: StageOptions;
   private views = new Map<string, ClipView>();
   private chapterIndex = -1;
@@ -39,15 +42,33 @@ export class Stage {
     this.options = options;
     this.element = doc.createElement('div');
     this.element.className = 'ccp-stage';
-    this.element.style.width = `${course.stage.width}px`;
-    this.element.style.height = `${course.stage.height}px`;
-    this.element.style.background = course.stage.background;
+    this.applyStageSize();
     this.layer = doc.createElement('div');
     this.layer.className = 'ccp-layer';
     this.captionBox = doc.createElement('div');
     this.captionBox.className = 'ccp-captions';
     this.captionBox.hidden = true;
     this.element.append(this.layer, this.captionBox);
+  }
+
+  /**
+   * Replaces the course (used by the editor while editing). The current
+   * chapter is rebuilt on the next render; media elements with the same
+   * source are reused, so videos keep their buffer and do not flicker.
+   */
+  setCourse(course: Course) {
+    if (course === this.course) return;
+    this.course = course;
+    this.forceRebuild = true;
+    this.chapterIndex = -1;
+    this.applyStageSize();
+  }
+
+  private applyStageSize() {
+    const { width, height, background } = this.course.stage;
+    this.element.style.width = `${width}px`;
+    this.element.style.height = `${height}px`;
+    this.element.style.background = background;
   }
 
   /** True if an active media element is buffering and time should not advance. */
@@ -128,22 +149,51 @@ export class Stage {
     const chapter = this.course.chapters[index];
     if (!chapter) return;
     const doc = this.element.ownerDocument;
-    const keep = new Set<string>();
+    const rebuildAll = this.forceRebuild;
+    this.forceRebuild = false;
     const ordered = orderedTracks(this.course, chapter);
 
-    for (const { track, layer } of ordered) {
+    // Course layer elements survive chapter changes (no flicker, media keeps
+    // its buffer) unless the whole course changed.
+    const old = this.views;
+    this.views = new Map();
+    const kept = new Set<string>();
+    if (!rebuildAll) {
+      for (const { track, layer } of ordered) {
+        if (layer === 'chapter') continue;
+        for (const clip of track.clips) if (old.has(clip.id)) kept.add(clip.id);
+      }
+    }
+
+    // Media elements of removed views can be reused by new views with the
+    // same source.
+    const pool = new Map<string, HTMLMediaElement[]>();
+    for (const [id, view] of old) {
+      if (kept.has(id)) continue;
+      view.root.remove();
+      if (view.media) {
+        const key = `${view.media.tagName}|${view.media.getAttribute('src') ?? ''}`;
+        pool.set(key, [...(pool.get(key) ?? []), view.media]);
+      }
+    }
+    const reuse = (tag: string, src: string) => pool.get(`${tag.toUpperCase()}|${src}`)?.pop() ?? null;
+
+    for (const { track } of ordered) {
       for (const clip of track.clips) {
-        keep.add(clip.id);
-        // Course layer elements survive chapter changes (no flicker, media
-        // keeps its buffer).
-        if (layer !== 'chapter' && this.views.has(clip.id)) continue;
-        const view = createClipView(doc, clip, this.course.assets, this.options.resolveAsset);
+        if (kept.has(clip.id)) {
+          this.views.set(clip.id, old.get(clip.id)!);
+          continue;
+        }
+        const view = createClipView(doc, clip, this.course.assets, this.options.resolveAsset, reuse);
         if (view.root.tagName !== 'AUDIO') view.root.style.display = 'none';
         if (view.media) {
-          view.media.addEventListener('error', () => this.options.onMediaError(clip.id));
-          view.media.addEventListener('canplay', () => this.refresh());
+          if (!this.mediaOwner.has(view.media)) {
+            const media = view.media;
+            media.addEventListener('error', () => this.options.onMediaError(this.mediaOwner.get(media) ?? ''));
+            media.addEventListener('canplay', () => this.refresh());
+          }
+          this.mediaOwner.set(view.media, clip.id);
         }
-        this.views.get(clip.id)?.root.remove();
         this.views.set(clip.id, view);
         this.layer.append(view.root);
         if ((clip.type === 'video' || clip.type === 'audio') && clip.captionsAssetId) {
@@ -152,11 +202,12 @@ export class Stage {
       }
     }
 
-    for (const [id, view] of this.views) {
-      if (keep.has(id)) continue;
-      view.media?.pause();
-      view.root.remove();
-      this.views.delete(id);
+    for (const elements of pool.values()) {
+      for (const media of elements) {
+        media.pause();
+        media.removeAttribute('src');
+        media.load();
+      }
     }
 
     this.element.style.background = chapter.background ?? this.course.stage.background;
