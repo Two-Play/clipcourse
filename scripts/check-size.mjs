@@ -11,5 +11,7 @@ if (!file || !max) {
 const raw = readFileSync(file);
 const gz = gzipSync(raw, { level: 9 }).length;
 const ok = gz <= Number(max);
-console.log(`${file}: ${raw.length} B raw, ${gz} B gzip (budget ${max} B) ${ok ? 'OK' : 'TOO LARGE'}`);
+console.log(
+  `${file}: ${raw.length} B raw, ${gz} B gzip (budget ${max} B) ${ok ? 'OK' : 'TOO LARGE'}`,
+);
 process.exit(ok ? 0 : 1);
