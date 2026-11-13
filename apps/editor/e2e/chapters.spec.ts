@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import type { Course } from '@clipcourse/format';
 import { expect, test, type Page } from '@playwright/test';
-import { clips, editorState, openFresh } from './helpers.js';
+import { clips, editorState, openFresh, press, ribbon } from './helpers.js';
 
 const chapterTitles = async (page: Page) =>
   ((await editorState(page)).course as Course).chapters.map((c) => c.title);
@@ -12,7 +12,7 @@ test.describe('chapters', () => {
     page.on('dialog', (d) => void d.accept());
     const panel = page.getByRole('region', { name: 'Chapters' });
 
-    await panel.getByText('＋ Add chapter').click();
+    await panel.getByText('Add chapter', { exact: true }).click();
     await page.getByRole('menuitem', { name: 'Title', exact: true }).click();
     expect(await chapterTitles(page)).toEqual(['Chapter 1', 'Title']);
     // The new chapter is opened and has the template's clips.
@@ -41,11 +41,11 @@ test.describe('chapters', () => {
   test('save a chapter as a template and reuse it', async ({ page }) => {
     await openFresh(page);
     page.on('dialog', (d) => void d.accept('My layout'));
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     await page.getByRole('button', { name: 'Save as template' }).click();
     await expect(page.getByRole('status')).toContainText('Saved “My layout”');
 
-    await page.getByText('＋ Add chapter').click();
+    await page.getByText('Add chapter', { exact: true }).click();
     await page.getByRole('menuitem', { name: 'My layout' }).click();
     const { course, chapterId } = await editorState(page);
     expect(course.chapters).toHaveLength(2);
@@ -59,13 +59,14 @@ test.describe('chapters', () => {
 test.describe('course layer, markers, animations, highlights', () => {
   test('a progress bar in the course layer appears in every chapter', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Progress bar' }).click();
+    await ribbon(page, 'Insert');
+    await press(page, 'Progress bar');
     const { course } = await editorState(page);
     expect(course.courseLayer?.foreground[0]!.clips[0]!.type).toBe('progress');
     await expect(page.locator('.tl-row.is-course')).toHaveCount(1);
     await expect(page.locator('.stage-canvas .ccp-clip-progress')).toBeVisible();
 
-    await page.getByText('＋ Add chapter').click();
+    await page.getByText('Add chapter', { exact: true }).click();
     await page.getByRole('menuitem', { name: 'Blank chapter' }).click();
     await expect(page.locator('.stage-canvas .ccp-clip-progress')).toBeVisible();
     await expect(page.locator('.tl-row.is-course')).toHaveCount(1);
@@ -76,7 +77,7 @@ test.describe('course layer, markers, animations, highlights', () => {
   }) => {
     await openFresh(page);
     await page.getByRole('button', { name: 'Add track for all chapters' }).click();
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     const before = (await clips(page))[0]!;
     const clip = (await page.locator('.tl-clip').first().boundingBox())!;
     const courseLane = (await page.locator('.tl-row.is-course .tl-lane').boundingBox())!;
@@ -104,7 +105,7 @@ test.describe('course layer, markers, animations, highlights', () => {
 
   test('entrance animation and highlight settings', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Highlight' }).click();
+    await press(page, 'Highlight');
     await page.getByLabel('Style').selectOption('spotlight');
     await page.getByLabel('Pulse to draw attention').check();
     await page.getByLabel('Entrance', { exact: true }).selectOption('slide');
@@ -128,11 +129,12 @@ test.describe('course layer, markers, animations, highlights', () => {
 
   test('preview shows the table of contents with markers', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: 'Open example' }).click();
+    await ribbon(page, 'File');
+    await press(page, 'Open example');
     await expect(page.locator('.tl-clip')).not.toHaveCount(0);
     await page.evaluate(() => window.__session!.store.getState().setPlayhead(4000));
     await page.getByRole('button', { name: 'Add marker' }).click();
-    await page.getByRole('button', { name: '▶ Preview' }).click();
+    await press(page, 'Preview');
     const dialog = page.getByRole('dialog', { name: 'Preview' });
     await dialog.getByRole('button', { name: 'Contents' }).click();
     const toc = dialog.getByRole('navigation', { name: 'Contents' });

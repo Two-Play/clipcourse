@@ -25,6 +25,24 @@ import {
   type Recipe,
 } from '@clipcourse/editor-core';
 import type { Clip, Marker, Track } from '@clipcourse/format';
+import {
+  ArrowDown,
+  ArrowUp,
+  BookmarkPlus,
+  Eye,
+  EyeOff,
+  Layers,
+  Magnet,
+  Pause,
+  Play,
+  Rows3,
+  Scissors,
+  Trash2,
+  Volume2,
+  VolumeX,
+  ZoomIn,
+  ZoomOut,
+} from 'lucide-react';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { addAssetClip, splitSelectionAtPlayhead } from '../actions.js';
 import { useEditor, useSession } from '../context.js';
@@ -326,11 +344,12 @@ export function Timeline() {
           type="button"
           onClick={() => splitSelectionAtPlayhead(session)}
           disabled={selection.length === 0}
+          className="icon-button"
         >
-          {t('split')}
+          <Scissors size={15} aria-hidden /> {t('split')}
         </button>
-        <button type="button" onClick={addTrackOnTop}>
-          {t('addTrack')}
+        <button type="button" onClick={addTrackOnTop} className="icon-button">
+          <Rows3 size={15} aria-hidden /> {t('addTrack')}
         </button>
         <button
           type="button"
@@ -343,8 +362,9 @@ export function Timeline() {
               }),
             )
           }
+          className="icon-button"
         >
-          {t('addCourseTrack')}
+          <Layers size={15} aria-hidden /> {t('addCourseTrack')}
         </button>
         <button
           type="button"
@@ -358,8 +378,9 @@ export function Timeline() {
                 addMarker(chapter.id, { id, time: playhead, title: `${t('marker')} ${n}` }),
               );
           }}
+          className="icon-button"
         >
-          {t('addMarker')}
+          <BookmarkPlus size={15} aria-hidden /> {t('addMarker')}
         </button>
         <label className="tl-check">
           <input
@@ -367,10 +388,12 @@ export function Timeline() {
             checked={snapping}
             onChange={(e) => store.getState().setSnapping(e.target.checked)}
           />
+          <Magnet size={15} aria-hidden />
           {t('snapping')}
         </label>
         <label className="tl-zoom">
-          {t('zoom')}
+          <ZoomOut size={15} aria-hidden />
+          <span className="sr-only">{t('zoom')}</span>
           <input
             type="range"
             min={Math.log(5)}
@@ -379,6 +402,7 @@ export function Timeline() {
             value={Math.log(zoom)}
             onChange={(e) => store.getState().setZoom(Math.exp(Number(e.target.value)))}
           />
+          <ZoomIn size={15} aria-hidden />
         </label>
       </div>
 
@@ -489,7 +513,7 @@ function TransportButton() {
         s.setPlaying(!s.playing);
       }}
     >
-      {playing ? '❚❚' : '▶'}
+      {playing ? <Pause size={16} aria-hidden /> : <Play size={16} aria-hidden />}
     </button>
   );
 }
@@ -538,7 +562,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
       )}
       {scope === 'course' && (
         <span className="tl-badge" title={t('allChapters')} aria-label={t('allChapters')}>
-          ∀
+          <Layers size={12} aria-hidden />
         </span>
       )}
       <div className="tl-track-buttons">
@@ -551,7 +575,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
             exec('Toggle visibility', updateTrack(track.id, { hidden: !track.hidden }))
           }
         >
-          {track.hidden ? '◌' : '◉'}
+          {track.hidden ? <EyeOff size={14} aria-hidden /> : <Eye size={14} aria-hidden />}
         </button>
         <button
           type="button"
@@ -560,7 +584,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
           title={track.muted ? t('unmuteTrack') : t('muteTrack')}
           onClick={() => exec('Toggle mute', updateTrack(track.id, { muted: !track.muted }))}
         >
-          {track.muted ? '🔇' : '🔊'}
+          {track.muted ? <VolumeX size={14} aria-hidden /> : <Volume2 size={14} aria-hidden />}
         </button>
         <button
           type="button"
@@ -569,7 +593,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
           disabled={index >= count - 1}
           onClick={() => exec('Move track', moveTrack(track.id, index + 1))}
         >
-          ↑
+          <ArrowUp size={14} aria-hidden />
         </button>
         <button
           type="button"
@@ -578,7 +602,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
           disabled={index <= 0}
           onClick={() => exec('Move track', moveTrack(track.id, index - 1))}
         >
-          ↓
+          <ArrowDown size={14} aria-hidden />
         </button>
         <button
           type="button"
@@ -592,7 +616,7 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
             })
           }
         >
-          ✕
+          <Trash2 size={14} aria-hidden />
         </button>
       </div>
     </div>

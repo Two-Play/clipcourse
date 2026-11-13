@@ -2,14 +2,14 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
-import { clips, drag, editorState, openFresh, setZoom } from './helpers.js';
+import { clips, drag, editorState, openFresh, setZoom, press, ribbon } from './helpers.js';
 
 const exampleDir = fileURLToPath(new URL('../../../examples/welcome/assets/', import.meta.url));
 
 test.describe('adding and editing clips', () => {
   test('adds a text clip, edits it in the inspector, undo and redo', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Text' }).click();
+    await press(page, 'Text');
     const [clip] = await clips(page);
     expect(clip).toMatchObject({ type: 'text', start: 0, duration: 3000 });
     await expect(page.locator(`.tl-clip[data-clip-id="${clip!.id}"]`)).toHaveClass(/is-selected/);
@@ -32,8 +32,8 @@ test.describe('adding and editing clips', () => {
   test('new clips go to the playhead and never overlap', async ({ page }) => {
     await openFresh(page);
     await page.evaluate(() => window.__session!.store.getState().setPlayhead(1000));
-    await page.getByRole('button', { name: '＋ Text' }).click();
-    await page.getByRole('button', { name: '＋ Text' }).click();
+    await press(page, 'Text');
+    await press(page, 'Text');
     const all = await clips(page);
     expect(all.map((c) => c.start)).toEqual([1000, 1000]);
     expect(new Set(all.map((c) => c.trackId)).size).toBe(2);
@@ -41,7 +41,7 @@ test.describe('adding and editing clips', () => {
 
   test('delete removes the selection, Ctrl+Z restores it', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     await page.locator('.tl-clip').first().click();
     await page.keyboard.press('Delete');
     expect(await clips(page)).toHaveLength(0);
@@ -51,7 +51,7 @@ test.describe('adding and editing clips', () => {
 
   test('split and duplicate', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     await page.evaluate(() => window.__session!.store.getState().setPlayhead(1000));
     await page.keyboard.press('s');
     expect((await clips(page)).map((c) => [c.start, c.duration])).toEqual([
@@ -68,7 +68,7 @@ test.describe('timeline drags', () => {
     await openFresh(page);
     await setZoom(page, 100);
     await page.getByLabel('Snap').uncheck();
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     const box = (await page.locator('.tl-clip').first().boundingBox())!;
     const y = box.y + box.height / 2;
     await drag(page, { x: box.x + box.width / 2, y }, { x: box.x + box.width / 2 + 200, y });
@@ -82,7 +82,7 @@ test.describe('timeline drags', () => {
   test('snaps to the playhead', async ({ page }) => {
     await openFresh(page);
     await setZoom(page, 100);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     await page.evaluate(() => window.__session!.store.getState().setPlayhead(5000));
     const box = (await page.locator('.tl-clip').first().boundingBox())!;
     const y = box.y + box.height / 2;
@@ -95,7 +95,7 @@ test.describe('timeline drags', () => {
     await openFresh(page);
     await setZoom(page, 100);
     await page.getByLabel('Snap').uncheck();
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     const box = (await page.locator('.tl-clip').first().boundingBox())!;
     const y = box.y + box.height / 2;
     await drag(page, { x: box.x + box.width - 2, y }, { x: box.x + box.width - 2 + 150, y });
@@ -105,7 +105,7 @@ test.describe('timeline drags', () => {
   test('moves a clip to another track', async ({ page }) => {
     await openFresh(page);
     await setZoom(page, 100);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     const before = (await clips(page))[0]!;
     const lanes = page.locator('.tl-lane');
     const target = await lanes.nth(1).getAttribute('data-lane-track-id');
@@ -123,7 +123,7 @@ test.describe('timeline drags', () => {
   test('Escape cancels a drag', async ({ page }) => {
     await openFresh(page);
     await setZoom(page, 100);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     const box = (await page.locator('.tl-clip').first().boundingBox())!;
     const y = box.y + box.height / 2;
     await page.mouse.move(box.x + 50, y);
@@ -138,7 +138,7 @@ test.describe('timeline drags', () => {
 
   test('keyboard moves a focused clip', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     await page.locator('.tl-clip').first().focus();
     await page.keyboard.press('Shift+ArrowRight');
     await page.keyboard.press('ArrowRight');
@@ -171,7 +171,7 @@ test.describe('timeline drags', () => {
 test.describe('stage', () => {
   test('clicking selects, dragging moves the frame', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     await page.keyboard.press('Escape');
     const clip = (await clips(page))[0]!;
     expect((await editorState(page)).selection).toEqual([]);
@@ -191,7 +191,7 @@ test.describe('stage', () => {
 
   test('corner handle resizes, arrow keys nudge', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Box' }).click();
+    await press(page, 'Box');
     const clip = (await clips(page))[0]!;
     if (clip.type !== 'box') throw new Error('expected box');
     const handle = (await page.locator('.stage-handle-se').boundingBox())!;
@@ -228,20 +228,23 @@ test.describe('media and files', () => {
 
   test('save downloads a zip that opens again', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: 'Open example' }).click();
+    await ribbon(page, 'File');
+    await press(page, 'Open example');
     await expect(page.locator('.tl-clip')).not.toHaveCount(0);
     const before = (await editorState(page)).course;
 
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: /^Save( •)?$/ }).click();
+    await press(page, 'Save');
     const file = await (await download).path();
     expect(file).toBeTruthy();
 
-    await page.getByRole('button', { name: 'New' }).click();
+    await ribbon(page, 'File');
+    await press(page, 'New');
     expect((await editorState(page)).course.title).toBe('Untitled course');
 
     const chooser = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Open…' }).click();
+    await ribbon(page, 'File');
+    await press(page, 'Open…');
     await (
       await chooser
     ).setFiles({ name: 'course.zip', mimeType: 'application/zip', buffer: readFileSync(file) });
@@ -254,7 +257,8 @@ test.describe('media and files', () => {
   test('reports a broken project file', async ({ page }) => {
     await openFresh(page);
     const chooser = page.waitForEvent('filechooser');
-    await page.getByRole('button', { name: 'Open…' }).click();
+    await ribbon(page, 'File');
+    await press(page, 'Open…');
     await (
       await chooser
     ).setFiles({ name: 'broken.zip', mimeType: 'application/zip', buffer: Buffer.from('nope') });
@@ -263,7 +267,7 @@ test.describe('media and files', () => {
 
   test('restores the working copy after a reload', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: '＋ Text' }).click();
+    await press(page, 'Text');
     await page.getByLabel('Text', { exact: true }).fill('Survives reload');
     await page.waitForTimeout(1200); // autosave debounce
     await page.goto('/');
@@ -277,7 +281,7 @@ test.describe('playback and preview', () => {
     await page.clock.install();
     await openFresh(page);
     await page.clock.pauseAt(Date.now() + 1000);
-    await page.getByRole('button', { name: '＋ Text' }).click();
+    await press(page, 'Text');
     await page.locator('.tl-ruler').click({ position: { x: 5, y: 10 } });
     await page.keyboard.press('Space');
     await page.clock.runFor(2000);
@@ -288,14 +292,15 @@ test.describe('playback and preview', () => {
     await page.clock.runFor(10000);
     const state = await editorState(page);
     expect(state.playhead).toBe(10000);
-    await expect(page.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
+    await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeVisible();
   });
 
   test('preview plays the course in the real player', async ({ page }) => {
     await openFresh(page);
-    await page.getByRole('button', { name: 'Open example' }).click();
+    await ribbon(page, 'File');
+    await press(page, 'Open example');
     await expect(page.locator('.tl-clip')).not.toHaveCount(0);
-    await page.getByRole('button', { name: '▶ Preview' }).click();
+    await press(page, 'Preview');
     const dialog = page.getByRole('dialog', { name: 'Preview' });
     await expect(dialog).toBeVisible();
     await expect(dialog.getByRole('heading', { name: 'Welcome to Clipcourse' })).toBeVisible();

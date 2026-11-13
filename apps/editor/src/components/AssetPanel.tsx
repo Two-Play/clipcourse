@@ -1,5 +1,15 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Media library: import files, drag them onto the timeline or add at the playhead. */
+import {
+  Captions,
+  Film,
+  Image as ImageIcon,
+  Music,
+  Plus,
+  Trash2,
+  Upload,
+  type LucideIcon,
+} from 'lucide-react';
 import { assetUsage, removeAsset } from '@clipcourse/editor-core';
 import { useState } from 'react';
 import { addAssetClip } from '../actions.js';
@@ -9,7 +19,12 @@ import { probeMediaDuration } from '../session.js';
 import { ASSET_MIME } from './Timeline.js';
 
 const ACCEPT = 'image/*,video/*,audio/*,.vtt,text/vtt';
-const ICON: Record<string, string> = { image: '🖼', video: '🎬', audio: '🔈', captions: 'CC' };
+const ICON: Record<string, LucideIcon> = {
+  image: ImageIcon,
+  video: Film,
+  audio: Music,
+  captions: Captions,
+};
 
 export function AssetPanel() {
   const session = useSession();
@@ -47,8 +62,8 @@ export function AssetPanel() {
     >
       <div className="panel-title">
         <h2>{t('assets')}</h2>
-        <button type="button" onClick={pick}>
-          {t('importMedia')}
+        <button type="button" onClick={pick} className="icon-button">
+          <Upload size={14} aria-hidden /> {t('importMedia')}
         </button>
       </div>
       {errors.length > 0 && (
@@ -82,7 +97,7 @@ export function AssetPanel() {
                 data-asset-id={id}
               >
                 <span className="asset-thumb" aria-hidden="true">
-                  {thumb ? <img src={thumb} alt="" /> : ICON[asset.kind]}
+                  {thumb ? <img src={thumb} alt="" /> : <KindIcon kind={asset.kind} />}
                 </span>
                 <span className="asset-name" title={asset.src}>
                   {name}
@@ -96,7 +111,7 @@ export function AssetPanel() {
                     title="Add at playhead"
                     onClick={() => addAssetClip(session, id)}
                   >
-                    ＋
+                    <Plus size={14} aria-hidden />
                   </button>
                 )}
                 <button
@@ -107,7 +122,7 @@ export function AssetPanel() {
                   disabled={inUse}
                   onClick={() => session.store.getState().execute('Remove media', removeAsset(id))}
                 >
-                  ✕
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </li>
             );
@@ -116,4 +131,9 @@ export function AssetPanel() {
       )}
     </aside>
   );
+}
+
+function KindIcon({ kind }: { kind: string }) {
+  const Icon = ICON[kind] ?? ImageIcon;
+  return <Icon size={16} aria-hidden />;
 }

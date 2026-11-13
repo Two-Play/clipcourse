@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Chapter list: open, add from templates, rename, reorder, duplicate, delete. */
+import { ArrowDown, ArrowUp, CopyPlus, LayoutTemplate, Plus, Trash2 } from 'lucide-react';
 import {
   builtInTemplates,
   duplicateChapter,
@@ -51,7 +52,9 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
       <div className="panel-title">
         <h2>{t('chapters')}</h2>
         <details className="menu" ref={menuRef}>
-          <summary className="button">＋ {t('addChapter')}</summary>
+          <summary className="button icon-button">
+            <Plus size={14} aria-hidden /> {t('addChapter')}
+          </summary>
           <div className="menu-popup" role="menu">
             <p className="menu-heading">{t('templates')}</p>
             {builtInTemplates(course).map((template) => (
@@ -79,7 +82,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                     await reloadTemplates();
                   }}
                 >
-                  ✕
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </div>
             ))}
@@ -145,7 +148,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                     store.getState().execute('Move chapter', moveChapter(chapter.id, index - 1))
                   }
                 >
-                  ↑
+                  <ArrowUp size={14} aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -156,7 +159,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                     store.getState().execute('Move chapter', moveChapter(chapter.id, index + 1))
                   }
                 >
-                  ↓
+                  <ArrowDown size={14} aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -175,7 +178,7 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                     if (created) store.getState().setChapter(created);
                   }}
                 >
-                  ⧉
+                  <CopyPlus size={14} aria-hidden />
                 </button>
                 <button
                   type="button"
@@ -190,15 +193,15 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                     store.getState().execute('Delete chapter', removeChapter(chapter.id));
                   }}
                 >
-                  ✕
+                  <Trash2 size={14} aria-hidden />
                 </button>
               </span>
             </li>
           );
         })}
       </ol>
-      <button type="button" className="save-template" onClick={saveTemplate}>
-        {t('saveAsTemplate')}
+      <button type="button" className="save-template icon-button" onClick={saveTemplate}>
+        <LayoutTemplate size={14} aria-hidden /> {t('saveAsTemplate')}
       </button>
     </section>
   );

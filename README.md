@@ -59,7 +59,10 @@ restored on the next start.
 
 ### Editor basics
 
-- Add text, boxes and shapes with the toolbar; import images, video, audio and
+- The ribbon works like Office: File, Home, Insert, Chapter and View tabs, plus a
+  contextual tab for the selected clip (animation, font, colors, arrange).
+  Collapse it with the arrow on the right.
+- Add text, boxes and shapes from Home or Insert; import images, video, audio and
   `.vtt` captions and drag them onto a track.
 - Drag clips to move them (also to other tracks), drag their edges to trim.
   Clips snap to the playhead, clip edges and the chapter bounds; hold Alt to

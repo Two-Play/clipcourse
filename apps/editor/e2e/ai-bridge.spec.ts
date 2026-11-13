@@ -6,7 +6,7 @@ import { createServer, startBridge, Workspace, type Bridge } from '@clipcourse/m
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { expect, test } from '@playwright/test';
-import { clips, openFresh } from './helpers.js';
+import { clips, openFresh, press } from './helpers.js';
 
 let root: string;
 let bridge: Bridge;
@@ -40,7 +40,7 @@ async function call(name: string, args: Record<string, unknown> = {}) {
 
 test('an AI assistant pairs with the open editor and edits live, undoable', async ({ page }) => {
   await openFresh(page);
-  await page.getByRole('button', { name: '✦ AI assistant' }).click();
+  await press(page, 'AI assistant');
   const dialog = page.getByRole('dialog', { name: 'Connect an AI assistant' });
 
   const { code } = await call('pair_editor');
@@ -64,7 +64,7 @@ test('an AI assistant pairs with the open editor and edits live, undoable', asyn
   await expect(page.locator('.ai-status')).toContainText('Added text clip');
 
   // The user's own edits reach the assistant.
-  await page.getByRole('button', { name: '＋ Box' }).click();
+  await press(page, 'Box');
   await expect
     .poll(async () =>
       JSON.stringify(await call('get_course', { project: 'editor:1', format: 'json' })),
@@ -84,7 +84,7 @@ test('an AI assistant pairs with the open editor and edits live, undoable', asyn
 
 test('a wrong code is refused and explained', async ({ page }) => {
   await openFresh(page);
-  await page.getByRole('button', { name: '✦ AI assistant' }).click();
+  await press(page, 'AI assistant');
   const dialog = page.getByRole('dialog', { name: 'Connect an AI assistant' });
   const { code } = await call('pair_editor');
   await dialog.getByLabel('Pairing code').fill(code === '000000' ? '000001' : '000000');
@@ -96,7 +96,7 @@ test('a wrong code is refused and explained', async ({ page }) => {
 
 test('only local assistants are accepted', async ({ page }) => {
   await openFresh(page);
-  await page.getByRole('button', { name: '✦ AI assistant' }).click();
+  await press(page, 'AI assistant');
   const dialog = page.getByRole('dialog', { name: 'Connect an AI assistant' });
   await dialog.getByLabel('Pairing code').fill('123456');
   await dialog.getByText('More options').click();

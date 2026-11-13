@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Pairing dialog for the AI assistant (MCP live bridge). */
+import { Bot, Unplug } from 'lucide-react';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 import { DEFAULT_BRIDGE_URL, type AiBridge } from '../ai-bridge.js';
 import { t } from '../i18n.js';
@@ -90,13 +91,13 @@ export function AiStatus({ bridge }: { bridge: AiBridge }) {
   if (status.state !== 'connected') return null;
   return (
     <div className="ai-status" role="status">
-      <span className="ai-dot" aria-hidden="true" />
+      <Bot size={16} aria-hidden />
       <span>
         {t('aiConnected', { id: status.id })}
         {status.lastAction ? ` · ${status.lastAction}` : ''}
       </span>
-      <button type="button" onClick={() => bridge.disconnect()}>
-        {t('aiDisconnect')}
+      <button type="button" className="icon-button" onClick={() => bridge.disconnect()}>
+        <Unplug size={14} aria-hidden /> {t('aiDisconnect')}
       </button>
     </div>
   );
