@@ -10,6 +10,7 @@ import type {
   VisualClip,
 } from '@clipcourse/format';
 import type { TextPart } from '../core/interactions.js';
+import { cssColor } from './theme.js';
 
 export type AssetResolver = (asset: Asset, assetId: string) => string;
 
@@ -137,13 +138,19 @@ export function createClipView(
       const el = doc.createElement(extras.onAction ? 'button' : 'div');
       el.className = 'ccp-button';
       if (el instanceof HTMLButtonElement) el.type = 'button';
-      applyBoxStyle(el, clip.fill ?? '#4f8cff', clip.stroke, clip.strokeWidth, clip.radius ?? 16);
+      applyBoxStyle(
+        el,
+        clip.fill ?? 'theme:accent',
+        clip.stroke,
+        clip.strokeWidth,
+        clip.radius ?? 16,
+      );
       const label = doc.createElement('span');
       label.className = 'ccp-text';
       label.textContent = clip.text;
       applyTextStyle(el, label, {
         align: 'center',
-        color: '#ffffff',
+        color: 'theme:onAccent',
         fontWeight: 600,
         ...clip.style,
       });
@@ -175,7 +182,7 @@ export function createClipView(
           createLineSvg(
             doc,
             clip.frame,
-            clip.stroke ?? clip.fill ?? '#000',
+            cssColor(clip.stroke ?? clip.fill ?? '#000'),
             clip.strokeWidth ?? 4,
             clip.shape === 'arrow',
           ),
@@ -196,18 +203,24 @@ export function createClipView(
       if (clip.kind === 'marker') {
         const fill = doc.createElement('div');
         fill.className = 'ccp-hl-fill';
-        fill.style.background = clip.color ?? '#ffdd00';
+        fill.style.background = cssColor(clip.color ?? '#ffdd00');
         fill.style.borderRadius = `${radius}px`;
         root.append(fill);
       } else if (clip.kind === 'frame') {
-        root.style.border = `${clip.strokeWidth ?? 8}px solid ${clip.color ?? '#ff5d73'}`;
+        root.style.border = `${clip.strokeWidth ?? 8}px solid ${cssColor(clip.color ?? '#ff5d73')}`;
         root.style.borderRadius = `${radius}px`;
       } else if (clip.kind === 'spotlight') {
         root.style.borderRadius = `${radius}px`;
-        root.style.boxShadow = `0 0 0 100000px ${clip.color ?? 'rgba(0,0,0,0.65)'}`;
+        root.style.boxShadow = `0 0 0 100000px ${cssColor(clip.color ?? 'rgba(0,0,0,0.65)')}`;
       } else {
         root.append(
-          createLineSvg(doc, clip.frame, clip.color ?? '#ff5d73', clip.strokeWidth ?? 8, true),
+          createLineSvg(
+            doc,
+            clip.frame,
+            cssColor(clip.color ?? '#ff5d73'),
+            clip.strokeWidth ?? 8,
+            true,
+          ),
         );
       }
       if (clip.label) {
@@ -223,11 +236,11 @@ export function createClipView(
       root.setAttribute('aria-valuemin', '0');
       root.setAttribute('aria-valuemax', '100');
       root.setAttribute('aria-label', 'Course progress');
-      root.style.background = clip.background ?? 'rgba(255,255,255,0.25)';
+      root.style.background = cssColor(clip.background ?? 'rgba(255,255,255,0.25)');
       root.style.borderRadius = `${clip.radius ?? 999}px`;
       const fill = doc.createElement('div');
       fill.className = 'ccp-progress-fill';
-      fill.style.background = clip.fill ?? '#4f8cff';
+      fill.style.background = cssColor(clip.fill ?? 'theme:accent');
       root.append(fill);
       break;
     }
@@ -287,8 +300,8 @@ function applyBoxStyle(
   strokeWidth: number | undefined,
   radius: number | undefined,
 ) {
-  if (fill) el.style.background = fill;
-  if (stroke) el.style.border = `${strokeWidth ?? 2}px solid ${stroke}`;
+  if (fill) el.style.background = cssColor(fill);
+  if (stroke) el.style.border = `${strokeWidth ?? 2}px solid ${cssColor(stroke)}`;
   if (radius !== undefined) el.style.borderRadius = `${radius}px`;
 }
 
@@ -298,7 +311,7 @@ function applyTextStyle(container: HTMLElement, el: HTMLElement, style: TextStyl
   el.style.fontSize = `${s.fontSize ?? 48}px`;
   if (s.fontWeight) el.style.fontWeight = String(s.fontWeight);
   if (s.italic) el.style.fontStyle = 'italic';
-  if (s.color) el.style.color = s.color;
+  if (s.color) el.style.color = cssColor(s.color);
   el.style.textAlign = s.align ?? 'left';
   if (s.lineHeight) el.style.lineHeight = String(s.lineHeight);
   container.style.justifyContent =
