@@ -88,6 +88,17 @@ function checkSemantics(course: Course, issues: ValidationIssue[], warnings: Val
     tracks.forEach((track, ti) => {
       const trackPath = `${basePath}/${ti}`;
       checkUnique(trackIds, track.id, `${trackPath}/id`, 'track');
+      const sorted = [...track.clips].sort((a, b) => a.start - b.start);
+      for (let k = 1; k < sorted.length; k++) {
+        const prev = sorted[k - 1]!;
+        const clip = sorted[k]!;
+        if (clip.start < prev.start + prev.duration) {
+          warnings.push({
+            path: trackPath,
+            message: `Clips "${prev.id}" and "${clip.id}" overlap on track "${track.id}"; the editor expects one clip at a time per track`,
+          });
+        }
+      }
       track.clips.forEach((clip, ci) => {
         const clipPath = `${trackPath}/clips/${ci}`;
         checkUnique(clipIds, clip.id, `${clipPath}/id`, 'clip');

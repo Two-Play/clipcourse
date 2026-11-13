@@ -159,3 +159,11 @@ describe('migrateCourse', () => {
     expect(result).toEqual({ formatVersion: 3, a: 1, b: 2, c: 3 });
   });
 });
+
+test('warns about overlapping clips on one track', () => {
+  const doc = minimalCourse() as AnyObj;
+  doc.chapters[0].tracks[0].clips[1].start = 1500;
+  const result = validateCourse(doc);
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.warnings.map((w) => w.message).join()).toMatch(/overlap/);
+});
