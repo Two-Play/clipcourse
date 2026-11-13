@@ -1,0 +1,9 @@
+pnpm-lock.yaml
+dist/
+coverage/
+playwright-report/
+test-results/
+LICENSE
+**/LICENSE
+THIRD_PARTY_LICENSES.md
+packages/format/schema/*.json
