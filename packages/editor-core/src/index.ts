@@ -13,3 +13,5 @@ export * from './describe.js';
 export * from './bridge-protocol.js';
 export * from './questions.js';
 export * from './references.js';
+export * from './blocks.js';
+export * from './course-templates.js';

@@ -38,7 +38,7 @@ describe('executeOperation', () => {
     const clipId = result.created!.clipId!;
     let clip = findClip(course(), clipId)!.clip;
     expect(clip).toMatchObject({ type: 'text', text: 'Hi', start: 7000, duration: 2000 });
-    expect(clip.type === 'text' && clip.style).toMatchObject({ fontSize: 72, color: '#ffffff' });
+    expect(clip.type === 'text' && clip.style).toMatchObject({ fontSize: 72, color: 'theme:text' });
 
     run({
       op: 'update_clip',

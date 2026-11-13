@@ -12,6 +12,7 @@ import type {
   Track,
   VisualClip,
 } from '@clipcourse/format';
+import { resolveColor, themeOf } from '@clipcourse/format';
 import { validateCourse } from '@clipcourse/format/validation';
 
 export type ReviewSeverity = 'error' | 'warning' | 'info';
@@ -87,6 +88,7 @@ export function contrastRatio(a: [number, number, number], b: [number, number, n
 function textOf(clip: Clip): { text: string; style: TextStyle | undefined } | null {
   if (clip.type === 'text') return { text: clip.text, style: clip.style };
   if (clip.type === 'box' && clip.text) return { text: clip.text, style: clip.style };
+  if (clip.type === 'button') return { text: clip.text, style: clip.style };
   return null;
 }
 
@@ -286,9 +288,17 @@ export function reviewCourse(course: Course): ReviewIssue[] {
               fix: `Use at least ${Math.ceil(minFont)}.`,
             });
           }
-          const fg = parseColor(text.style?.color ?? '#ffffff');
+          // Theme roles ("theme:text") are checked with the course theme's colors.
+          const theme = themeOf(course);
+          const defaultColor = clip.type === 'button' ? 'theme:onAccent' : 'theme:text';
+          const fg = parseColor(resolveColor(text.style?.color ?? defaultColor, theme));
           const bg = parseColor(
-            backgroundBehind(course, chapter, tracks, trackIndex, clip) ?? undefined,
+            resolveColor(
+              (clip.type === 'button' ? (clip.fill ?? 'theme:accent') : null) ??
+                backgroundBehind(course, chapter, tracks, trackIndex, clip) ??
+                undefined,
+              theme,
+            ),
           );
           if (fg && bg) {
             const ratio = contrastRatio(fg, bg);
