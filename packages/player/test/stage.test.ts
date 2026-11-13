@@ -19,8 +19,22 @@ const withVideo = (): Course =>
           {
             id: 't',
             clips: [
-              { id: 'v', type: 'video', assetId: 'vid', start: 0, duration: 5000, frame: { x: 0, y: 0, width: 100, height: 100 } },
-              { id: 'b', type: 'box', text: 'Hi', start: 0, duration: 5000, frame: { x: 0, y: 0, width: 100, height: 100 } },
+              {
+                id: 'v',
+                type: 'video',
+                assetId: 'vid',
+                start: 0,
+                duration: 5000,
+                frame: { x: 0, y: 0, width: 100, height: 100 },
+              },
+              {
+                id: 'b',
+                type: 'box',
+                text: 'Hi',
+                start: 0,
+                duration: 5000,
+                frame: { x: 0, y: 0, width: 100, height: 100 },
+              },
             ],
           },
         ],
@@ -56,7 +70,9 @@ test('setCourse rebuilds clips and reuses media elements with the same source', 
   expect(stage.element.querySelector('video')).toBe(video);
   expect(stage.element.querySelectorAll('video')).toHaveLength(1);
   expect(stage.element.textContent).toContain('Changed');
-  expect((stage.element.querySelector('[data-clip-id="v"]') as HTMLElement).style.left).toBe('50px');
+  expect((stage.element.querySelector('[data-clip-id="v"]') as HTMLElement).style.left).toBe(
+    '50px',
+  );
 });
 
 test('setCourse updates the stage size', () => {

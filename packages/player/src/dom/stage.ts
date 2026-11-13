@@ -176,7 +176,8 @@ export class Stage {
         pool.set(key, [...(pool.get(key) ?? []), view.media]);
       }
     }
-    const reuse = (tag: string, src: string) => pool.get(`${tag.toUpperCase()}|${src}`)?.pop() ?? null;
+    const reuse = (tag: string, src: string) =>
+      pool.get(`${tag.toUpperCase()}|${src}`)?.pop() ?? null;
 
     for (const { track } of ordered) {
       for (const clip of track.clips) {
@@ -184,12 +185,20 @@ export class Stage {
           this.views.set(clip.id, old.get(clip.id)!);
           continue;
         }
-        const view = createClipView(doc, clip, this.course.assets, this.options.resolveAsset, reuse);
+        const view = createClipView(
+          doc,
+          clip,
+          this.course.assets,
+          this.options.resolveAsset,
+          reuse,
+        );
         if (view.root.tagName !== 'AUDIO') view.root.style.display = 'none';
         if (view.media) {
           if (!this.mediaOwner.has(view.media)) {
             const media = view.media;
-            media.addEventListener('error', () => this.options.onMediaError(this.mediaOwner.get(media) ?? ''));
+            media.addEventListener('error', () =>
+              this.options.onMediaError(this.mediaOwner.get(media) ?? ''),
+            );
             media.addEventListener('canplay', () => this.refresh());
           }
           this.mediaOwner.set(view.media, clip.id);
