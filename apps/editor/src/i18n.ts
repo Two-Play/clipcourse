@@ -151,6 +151,18 @@ const en = {
   lmsSession: 'Session',
   lmsLaunches: '{n} launch(es)',
   lmsCalls: 'API calls',
+  aiAssistant: 'AI assistant',
+  aiTitle: 'Connect an AI assistant',
+  aiExplain:
+    'Your AI assistant (for example Claude) can edit this course live through the Clipcourse MCP server. Ask it to connect to the editor; it will give you a 6-digit code.',
+  aiCode: 'Pairing code',
+  aiAddress: 'Assistant address',
+  aiPrivacy:
+    'The assistant runs on this computer. It sees this course and can change it; every change can be undone with Ctrl+Z. Disconnect at any time.',
+  aiConnect: 'Connect',
+  aiConnecting: 'Connecting…',
+  aiConnected: 'AI assistant connected ({id})',
+  aiDisconnect: 'Disconnect',
   shortcuts:
     'Space: play/pause · Delete: remove · Ctrl+Z / Ctrl+Shift+Z: undo/redo · S: split · Ctrl+D: duplicate · ←/→: move playhead',
 };
