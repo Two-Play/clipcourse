@@ -36,6 +36,7 @@ packages/player       MIT    Player runtime that ships inside every exported cou
 packages/scorm-runtime MIT   SCORM 1.2/2004 runtime, ships inside every exported course
 packages/editor-core  AGPL   Editor model: commands, undo/redo, snapping, project files
 packages/exporter     AGPL   Builds SCORM packages
+packages/mcp-server   AGPL   MCP server: AI assistants build, review and export courses
 apps/editor           AGPL   The editor (React)
 apps/player-demo      MIT    Development harness that plays the example courses
 examples/             CC0    Example courses
@@ -81,6 +82,12 @@ restored on the next start.
   it also shows what an LMS would store.
 - **Export SCORM…** creates a package for your LMS, see
   [docs/scorm.md](docs/scorm.md).
+
+### AI assistants (MCP)
+
+`clipcourse-mcp` lets MCP clients such as Claude Desktop or Claude Code
+create, review and export courses in project folders you allow. See
+[docs/mcp.md](docs/mcp.md).
 
 | Key                   | Action                                 |
 | --------------------- | -------------------------------------- |
