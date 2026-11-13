@@ -5,6 +5,7 @@
  * provide its own implementation with real folders (M5).
  */
 import {
+  type ChapterTemplate,
   exportProjectZip,
   importProjectZip,
   type PickedFile,
@@ -16,6 +17,7 @@ import { validateCourse } from '@clipcourse/format/validation';
 
 const DB_NAME = 'clipcourse-editor';
 const DB_STORE = 'drafts';
+const TEMPLATE_STORE = 'templates';
 const DRAFT_KEY = 'current';
 
 interface StoredDraft {
@@ -26,8 +28,13 @@ interface StoredDraft {
 
 function openDb(factory: IDBFactory): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
-    const request = factory.open(DB_NAME, 1);
-    request.onupgradeneeded = () => request.result.createObjectStore(DB_STORE);
+    const request = factory.open(DB_NAME, 2);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(DB_STORE)) db.createObjectStore(DB_STORE);
+      if (!db.objectStoreNames.contains(TEMPLATE_STORE))
+        db.createObjectStore(TEMPLATE_STORE, { keyPath: 'id' });
+    };
     request.onsuccess = () => resolve(request.result);
     request.onerror = () => reject(request.error);
   });
@@ -37,10 +44,11 @@ function tx<T>(
   db: IDBDatabase,
   mode: IDBTransactionMode,
   run: (store: IDBObjectStore) => IDBRequest<T>,
+  storeName = DB_STORE,
 ) {
   return new Promise<T>((resolve, reject) => {
-    const transaction = db.transaction(DB_STORE, mode);
-    const request = run(transaction.objectStore(DB_STORE));
+    const transaction = db.transaction(storeName, mode);
+    const request = run(transaction.objectStore(storeName));
     transaction.oncomplete = () => resolve(request.result);
     transaction.onerror = () => reject(transaction.error);
     transaction.onabort = () => reject(transaction.error);
@@ -140,6 +148,28 @@ export function createBrowserStorage(
 
     async clearDraft() {
       await tx(await db(), 'readwrite', (s) => s.delete(DRAFT_KEY));
+    },
+
+    async listTemplates() {
+      try {
+        const all = await tx<ChapterTemplate[]>(
+          await db(),
+          'readonly',
+          (s) => s.getAll(),
+          TEMPLATE_STORE,
+        );
+        return all.sort((a, b) => b.createdAt - a.createdAt);
+      } catch {
+        return [];
+      }
+    },
+
+    async saveTemplate(template) {
+      await tx(await db(), 'readwrite', (s) => s.put(template), TEMPLATE_STORE);
+    },
+
+    async deleteTemplate(id) {
+      await tx(await db(), 'readwrite', (s) => s.delete(id), TEMPLATE_STORE);
     },
   };
 }

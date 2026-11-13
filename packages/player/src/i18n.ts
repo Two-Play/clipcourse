@@ -21,6 +21,10 @@ export const defaultStrings = {
   loading: 'Loading…',
   mediaError: 'A media file could not be loaded.',
   controls: 'Player controls',
+  contents: 'Contents',
+  closeContents: 'Close contents',
+  completed: 'completed',
+  current: 'current',
 };
 
 export type PlayerStrings = typeof defaultStrings;

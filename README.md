@@ -6,9 +6,9 @@ clips. Text, images, shapes, boxes and optional video or audio clips appear
 and disappear at exact times. The timeline itself is the beat, so you don't
 need a video or audio track.
 
-> **Status:** early development. Milestones 1 (course format and player) and
-> 2 (timeline editor) are done. Chapter management, animations and the SCORM
-> export are still in progress.
+> **Status:** early development. Milestones 1–3 (course format, player,
+> timeline editor, chapters, animations) are done. The SCORM export (M4) and
+> the desktop app (M5) are still in progress.
 
 ## Features
 
@@ -21,7 +21,10 @@ need a video or audio track.
 | Progress: bookmark and seen chapters, compact enough for SCORM 1.2                      | ✅ M1  |
 | Accessibility: keyboard control, WebVTT captions, alt text, screen reader announcements | ✅ M1  |
 | Timeline editor: tracks, clips, playhead, drag/trim with snapping, undo/redo            | ✅ M2  |
-| Chapter management, animations, highlights, table of contents                           | M3     |
+| Chapters: add from templates, reorder, duplicate, save as template                      | ✅ M3  |
+| Course layer ("all chapters" tracks), course progress bar                               | ✅ M3  |
+| Animations (fade, slide, zoom), highlights (marker, frame, arrow, spotlight)            | ✅ M3  |
+| Chapter markers and table of contents in the player                                     | ✅ M3  |
 | SCORM 1.2 and 2004 export                                                               | M4     |
 | Desktop app (Tauri), documentation                                                      | M5     |
 
@@ -60,6 +63,18 @@ restored on the next start.
   disable snapping. Escape cancels a drag.
 - Drag the striped chapter end to change the chapter length.
 - Select a clip on the stage to move it or resize it with the corner handles.
+- **Chapters** (left): add from a template, rename (double-click or F2),
+  reorder, duplicate, delete, or save the current chapter as a template for
+  other projects (templates keep their media).
+- **Add track for all chapters** creates a course layer track: its clips
+  (logo, background, progress bar) appear in every chapter.
+- **Add marker** puts a jump point at the playhead; markers show up in the
+  player's table of contents. Drag or use the arrow keys to move a focused
+  marker, double-click to rename, Delete to remove.
+- Every visual clip can have an entrance and exit animation (fade, slide,
+  zoom). Highlights (frame, marker, arrow, spotlight) can pulse and carry a
+  text for screen readers. With "reduce motion" enabled, the player turns
+  slides and zooms into fades and stops pulsing.
 - **Preview** plays the course in the real player.
 
 | Key                   | Action                                 |
@@ -81,6 +96,7 @@ restored on the next start.
 | ← / →     | Back or forward 5 seconds                              |
 | N / P     | Next or previous chapter                               |
 | C         | Captions on or off                                     |
+| T         | Table of contents                                      |
 
 ## Course format in brief
 

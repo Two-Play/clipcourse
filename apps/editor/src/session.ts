@@ -107,6 +107,13 @@ export class EditorSession {
 
   resolveAsset = (asset: Asset) => this.urls.get(asset);
 
+  /** Adds media files (e.g. from a template). */
+  addFiles(files: Map<string, Uint8Array>) {
+    if (files.size === 0) return;
+    for (const [path, data] of files) this.files.set(path, data);
+    this.notifyFiles();
+  }
+
   subscribeFiles(listener: () => void) {
     this.fileListeners.add(listener);
     return () => this.fileListeners.delete(listener);

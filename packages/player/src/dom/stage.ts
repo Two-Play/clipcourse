@@ -7,6 +7,7 @@
 import type { Asset, Course } from '@clipcourse/format';
 import { orderedTracks, type SceneState } from '../core/evaluate.js';
 import { cueTextAt, parseVtt, type Cue } from '../core/vtt.js';
+import type { AnimationState } from '../core/animation.js';
 import { createClipView, type AssetResolver, type ClipView } from './clips.js';
 import { isMediaStalled, syncMedia, type MediaTarget } from './media.js';
 
@@ -102,7 +103,16 @@ export class Stage {
       const entry = active.get(id);
       if (view.root.tagName !== 'AUDIO') {
         view.root.style.display = entry ? '' : 'none';
-        if (entry) view.root.style.zIndex = String(entry.z);
+        if (entry) {
+          view.root.style.zIndex = String(entry.z);
+          applyAnimation(view, entry.animation);
+          if (view.clip.type === 'progress') {
+            const percent = Math.round(scene.courseProgress * 1000) / 10;
+            const fill = view.root.firstElementChild as HTMLElement | null;
+            if (fill) fill.style.width = `${percent}%`;
+            view.root.setAttribute('aria-valuenow', String(Math.round(percent)));
+          }
+        }
       }
       if (view.media) {
         const clip = view.clip as Extract<typeof view.clip, { type: 'video' | 'audio' }>;
@@ -260,4 +270,21 @@ async function defaultLoadText(url: string): Promise<string> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`HTTP ${response.status}`);
   return response.text();
+}
+
+/** Writes opacity and transform for the animated state (only when changed). */
+function applyAnimation(view: ClipView, state: AnimationState) {
+  const clip = view.clip;
+  if (clip.type === 'audio') return;
+  const opacity = (clip.opacity ?? 1) * state.opacity;
+  const rotation = clip.frame.rotation ?? 0;
+  const parts: string[] = [];
+  if (state.x !== 0 || state.y !== 0) parts.push(`translate(${state.x}px, ${state.y}px)`);
+  if (rotation) parts.push(`rotate(${rotation}deg)`);
+  if (state.scale !== 1) parts.push(`scale(${state.scale})`);
+  const transform = parts.join(' ');
+  const style = view.root.style;
+  const opacityText = opacity === 1 ? '' : String(opacity);
+  if (style.opacity !== opacityText) style.opacity = opacityText;
+  if (style.transform !== transform) style.transform = transform;
 }

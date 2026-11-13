@@ -167,3 +167,44 @@ test('warns about overlapping clips on one track', () => {
   expect(result.ok).toBe(true);
   if (result.ok) expect(result.warnings.map((w) => w.message).join()).toMatch(/overlap/);
 });
+
+test('migrates version 1 documents to version 2', () => {
+  const result = validateCourse(minimalCourse());
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.course.formatVersion).toBe(2);
+});
+
+test('validates markers and the new clip types', () => {
+  const doc = minimalCourse() as AnyObj;
+  doc.chapters[0].markers = [
+    { id: 'm1', time: 1000, title: 'Part 1' },
+    { id: 'm2', time: 9000, title: 'Late' },
+  ];
+  doc.chapters[0].tracks.push({
+    id: 't2',
+    clips: [
+      {
+        id: 'h',
+        type: 'highlight',
+        kind: 'spotlight',
+        pulse: true,
+        start: 0,
+        duration: 1000,
+        frame: { x: 0, y: 0, width: 10, height: 10 },
+        animations: { in: { type: 'slide', direction: 'left', duration: 300, easing: 'ease-out' } },
+      },
+      {
+        id: 'p',
+        type: 'progress',
+        start: 1000,
+        duration: 1000,
+        frame: { x: 0, y: 0, width: 10, height: 2 },
+      },
+    ],
+  });
+  const result = validateCourse(doc);
+  expect(result.ok).toBe(true);
+  if (result.ok) expect(result.warnings.map((w) => w.message).join()).toMatch(/after the end/);
+  doc.chapters[0].tracks[1].clips[0].animations.in.type = 'spin';
+  expect(validateCourse(doc).ok).toBe(false);
+});

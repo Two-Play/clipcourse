@@ -3,7 +3,7 @@
  * Public player: wires the controller (state), the stage (picture and media)
  * and the controls (chrome) together.
  */
-import type { Asset, Course } from '@clipcourse/format';
+import { FORMAT_VERSION, type Asset, type Course } from '@clipcourse/format';
 import { createAnimationFrameClock, type Clock } from './clock.js';
 import { Controller, type ControllerEvent, type PlayerState } from './core/controller.js';
 import { evaluate } from './core/evaluate.js';
@@ -30,6 +30,13 @@ export interface PlayerOptions {
   clock?: Clock;
   /** Pause when the page is hidden. Default true. */
   pauseWhenHidden?: boolean;
+  /** Show the table of contents button. Default true. */
+  toc?: boolean;
+  /**
+   * Replace slide and zoom animations by fades and stop pulsing.
+   * Default: the user's "reduce motion" system setting.
+   */
+  reducedMotion?: boolean;
 }
 
 export type PlayerEvent =
@@ -64,7 +71,7 @@ export function createPlayer(
   course: Course,
   options: PlayerOptions = {},
 ): Player {
-  if (course.formatVersion !== 1) {
+  if (!(course.formatVersion >= 1 && course.formatVersion <= FORMAT_VERSION)) {
     throw new Error(`Unsupported course format version ${String(course.formatVersion)}`);
   }
   const doc = container.ownerDocument;
@@ -154,9 +161,65 @@ export function createPlayer(
   const time = h('span', 'ccp-time', { 'aria-hidden': 'true' });
   const title = h('span', 'ccp-title');
   const ccButton = button('ccp-btn ccp-cc', strings.captionsOn, ICONS.captions);
-  controls.append(prevButton, playButton, nextButton, seek, time, title, ccButton);
+  const seekWrap = h('span', 'ccp-seekwrap');
+  const ticks = h('span', 'ccp-ticks', { 'aria-hidden': 'true' });
+  seekWrap.append(seek, ticks);
+  const tocButton = button('ccp-btn ccp-toc-btn', strings.contents, ICONS.contents);
+  tocButton.setAttribute('aria-expanded', 'false');
+  controls.append(prevButton, playButton, nextButton, seekWrap, time, title, tocButton, ccButton);
+
+  // Table of contents: chapters with their markers.
+  const toc = h('nav', 'ccp-toc', { 'aria-label': strings.contents });
+  toc.hidden = true;
+  tocButton.setAttribute(
+    'aria-controls',
+    (toc.id = `ccp-toc-${Math.random().toString(36).slice(2, 8)}`),
+  );
+  const tocHead = h('div', 'ccp-toc-head');
+  const tocTitle = h('h2', '');
+  tocTitle.textContent = strings.contents;
+  const tocClose = button('ccp-btn', strings.closeContents, ICONS.close);
+  tocHead.append(tocTitle, tocClose);
+  const tocList = h('ol', '');
+  const tocItems: { button: HTMLButtonElement; state: HTMLElement }[] = [];
+  course.chapters.forEach((chapter, index) => {
+    const li = h('li', '');
+    const item = h('button', 'ccp-toc-item', { type: 'button' });
+    const num = h('span', 'ccp-toc-num');
+    num.textContent = `${index + 1}.`;
+    const name = h('span', 'ccp-toc-title');
+    name.textContent = chapter.title;
+    const state = h('span', 'ccp-toc-state');
+    item.append(num, name, state);
+    item.addEventListener('click', () => jumpTo(index, 0));
+    li.append(item);
+    if (chapter.markers?.length) {
+      const sub = h('ol', '');
+      for (const marker of [...chapter.markers].sort((a, b) => a.time - b.time)) {
+        const mli = h('li', '');
+        const mbutton = h('button', 'ccp-toc-item', { type: 'button' });
+        mbutton.textContent = marker.title;
+        mbutton.addEventListener('click', () => jumpTo(index, marker.time));
+        mli.append(mbutton);
+        sub.append(mli);
+      }
+      li.append(sub);
+    }
+    tocList.append(li);
+    tocItems.push({ button: item, state });
+  });
+  toc.append(tocHead, tocList);
+  const hasToc =
+    options.toc !== false &&
+    (course.chapters.length > 1 || course.chapters.some((c) => (c.markers?.length ?? 0) > 0));
+  tocButton.hidden = !hasToc;
+  const reducedMotion =
+    options.reducedMotion ??
+    (typeof win.matchMedia === 'function' &&
+      win.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
   const live = h('div', 'ccp-sr', { 'aria-live': 'polite', 'aria-atomic': 'true' });
+  viewport.append(toc);
   root.append(viewport, controls, live);
   container.append(root);
 
@@ -182,7 +245,7 @@ export function createPlayer(
     const chapter = course.chapters[state.chapterIndex]!;
     const playing = state.status === 'playing';
 
-    stage.render(evaluate(course, state.chapterIndex, state.time), playing);
+    stage.render(evaluate(course, state.chapterIndex, state.time, { reducedMotion }), playing);
     spinner.hidden = !(playing && stage.isStalled);
 
     overlay.hidden = started || playing;
@@ -212,6 +275,23 @@ export function createPlayer(
     playButton.title = playLabel;
     prevButton.disabled = !controller.hasPrevious;
     nextButton.disabled = !controller.hasNext;
+
+    if (ticks.dataset.chapter !== String(state.chapterIndex)) {
+      ticks.dataset.chapter = String(state.chapterIndex);
+      ticks.replaceChildren(
+        ...(chapter.markers ?? []).map((marker) => {
+          const tick = h('span', 'ccp-tick', { title: marker.title });
+          tick.style.left = `${(Math.min(marker.time, chapter.duration) / chapter.duration) * 100}%`;
+          return tick;
+        }),
+      );
+    }
+    tocItems.forEach((item, index) => {
+      const current = index === state.chapterIndex;
+      item.button.setAttribute('aria-current', String(current));
+      const label = state.seen[index] ? `✓ ${strings.completed}` : current ? strings.current : '';
+      if (item.state.textContent !== label) item.state.textContent = label;
+    });
 
     seek.max = String(chapter.duration);
     seek.value = String(state.time);
@@ -310,6 +390,31 @@ export function createPlayer(
   nextButton.addEventListener('click', () => controller.next());
   seek.addEventListener('input', () => controller.seek(Number(seek.value)));
   ccButton.addEventListener('click', () => setCaptions(!captionsOn));
+  tocButton.addEventListener('click', () => setToc(toc.hidden !== false));
+  tocClose.addEventListener('click', () => setToc(false));
+  toc.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      setToc(false);
+    }
+  });
+
+  function setToc(open: boolean) {
+    toc.hidden = !open;
+    tocButton.setAttribute('aria-expanded', String(open));
+    if (open) {
+      const current = tocItems[controller.state.chapterIndex]?.button ?? tocClose;
+      current.focus();
+    } else if (root.contains(doc.activeElement) || doc.activeElement === doc.body) {
+      tocButton.focus();
+    }
+  }
+
+  function jumpTo(chapterIndex: number, time: number) {
+    controller.goToChapter(chapterIndex, time);
+    setToc(false);
+  }
 
   root.addEventListener('keydown', (event) => {
     if (event.defaultPrevented || event.altKey || event.ctrlKey || event.metaKey) return;
@@ -340,6 +445,10 @@ export function createPlayer(
       case 'p':
       case 'P':
         controller.previous();
+        break;
+      case 't':
+      case 'T':
+        if (hasToc) setToc(toc.hidden !== false);
         break;
       case 'c':
       case 'C':

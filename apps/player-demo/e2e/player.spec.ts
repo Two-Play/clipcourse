@@ -132,6 +132,42 @@ test.describe('keyboard and accessibility', () => {
   });
 });
 
+test.describe('table of contents', () => {
+  test('lists chapters and markers, jumps, and closes with Escape', async ({ page }) => {
+    await openFixture(page);
+    const button = page.getByRole('button', { name: 'Contents' });
+    await button.click();
+    const toc = page.getByRole('navigation', { name: 'Contents' });
+    await expect(toc).toBeVisible();
+    await expect(toc.getByRole('button', { name: /First/ })).toBeFocused();
+    await toc.getByRole('button', { name: 'Halfway' }).click();
+    expect(await state(page)).toMatchObject({ chapterIndex: 0, time: 2000 });
+    await expect(toc).toBeHidden();
+    await expect(page.locator('.ccp-tick')).toHaveCount(1);
+
+    await button.click();
+    await page.keyboard.press('Escape');
+    await expect(toc).toBeHidden();
+    await expect(button).toBeFocused();
+
+    await page.keyboard.press('t');
+    await toc.getByRole('button', { name: /Third/ }).click();
+    expect((await state(page)).chapterIndex).toBe(2);
+  });
+
+  test('marks seen chapters', async ({ page }) => {
+    await openFixture(page);
+    await page.getByRole('button', { name: 'Start' }).click();
+    await page.clock.runFor(3200);
+    await page.getByRole('button', { name: 'Contents' }).click();
+    await expect(
+      page
+        .getByRole('navigation', { name: 'Contents' })
+        .getByRole('button', { name: /First.*completed/ }),
+    ).toBeVisible();
+  });
+});
+
 test.describe('example course', () => {
   test('loads the welcome example with media and captions', async ({ page }) => {
     await page.goto('/?course=welcome');

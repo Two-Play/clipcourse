@@ -11,13 +11,12 @@ type Json = Record<string, unknown>;
  * Migration steps. `migrations[n]` upgrades a document from version `n` to
  * `n + 1`. Each step must be pure: it receives a deep copy and returns the
  * upgraded document.
- *
- * Version 1 is the first released version, so there is nothing to migrate
- * yet. Example for a future step:
- *
- *   1: (doc) => ({ ...doc, formatVersion: 2, chapters: … }),
  */
-const migrations: Record<number, (doc: Json) => Json> = {};
+const migrations: Record<number, (doc: Json) => Json> = {
+  // v2 only adds optional features (animations, highlight and progress
+  // clips, chapter markers).
+  1: (doc) => ({ ...doc, formatVersion: 2 }),
+};
 
 /** Returns the format version stored in a raw document. */
 export function readFormatVersion(input: unknown): number {

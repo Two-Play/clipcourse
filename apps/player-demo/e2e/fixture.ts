@@ -6,7 +6,7 @@ const frame = { x: 100, y: 100, width: 800, height: 200 };
 
 /** A media-free course so timing tests do not depend on codecs. */
 export const fixtureCourse: Course = {
-  formatVersion: 1,
+  formatVersion: 2,
   id: 'e2e_fixture',
   title: 'E2E fixture',
   language: 'en',
@@ -18,6 +18,7 @@ export const fixtureCourse: Course = {
       title: 'First',
       duration: 3000,
       transition: { mode: 'wait' },
+      markers: [{ id: 'm1', time: 2000, title: 'Halfway' }],
       tracks: [
         {
           id: 't1',

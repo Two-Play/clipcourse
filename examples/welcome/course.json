@@ -1,5 +1,5 @@
 {
-  "formatVersion": 1,
+  "formatVersion": 2,
   "id": "welcome_to_clipcourse",
   "title": "Welcome to Clipcourse",
   "language": "en",
@@ -67,6 +67,27 @@
             "opacity": 0.8
           }
         ]
+      },
+      {
+        "id": "progress",
+        "name": "Progress",
+        "clips": [
+          {
+            "id": "course_progress",
+            "type": "progress",
+            "fill": "#4f8cff",
+            "background": "rgba(255,255,255,0.15)",
+            "radius": 0,
+            "start": 0,
+            "duration": 86400000,
+            "frame": {
+              "x": 0,
+              "y": 1068,
+              "width": 1920,
+              "height": 12
+            }
+          }
+        ]
       }
     ]
   },
@@ -122,6 +143,13 @@
                 "y": 300,
                 "width": 1600,
                 "height": 160
+              },
+              "animations": {
+                "in": {
+                  "type": "zoom",
+                  "duration": 800,
+                  "easing": "ease-out"
+                }
               }
             }
           ]
@@ -146,6 +174,13 @@
                 "y": 480,
                 "width": 1600,
                 "height": 100
+              },
+              "animations": {
+                "in": {
+                  "type": "fade",
+                  "duration": 600,
+                  "easing": "ease-out"
+                }
               }
             }
           ]
@@ -174,6 +209,14 @@
                 "y": 680,
                 "width": 800,
                 "height": 110
+              },
+              "animations": {
+                "in": {
+                  "type": "slide",
+                  "direction": "down",
+                  "duration": 600,
+                  "easing": "ease-out"
+                }
               }
             }
           ]
@@ -196,6 +239,13 @@
                 "width": 300,
                 "height": 40,
                 "rotation": 30
+              },
+              "animations": {
+                "in": {
+                  "type": "fade",
+                  "duration": 400,
+                  "easing": "ease-out"
+                }
               }
             }
           ]
@@ -251,6 +301,18 @@
                 "y": 140,
                 "width": 1600,
                 "height": 120
+              },
+              "animations": {
+                "in": {
+                  "type": "fade",
+                  "duration": 400,
+                  "easing": "ease-out"
+                },
+                "out": {
+                  "type": "fade",
+                  "duration": 300,
+                  "easing": "ease-in"
+                }
               }
             },
             {
@@ -270,6 +332,18 @@
                 "y": 140,
                 "width": 1600,
                 "height": 120
+              },
+              "animations": {
+                "in": {
+                  "type": "fade",
+                  "duration": 400,
+                  "easing": "ease-out"
+                },
+                "out": {
+                  "type": "fade",
+                  "duration": 300,
+                  "easing": "ease-in"
+                }
               }
             },
             {
@@ -289,6 +363,18 @@
                 "y": 140,
                 "width": 1600,
                 "height": 120
+              },
+              "animations": {
+                "in": {
+                  "type": "fade",
+                  "duration": 400,
+                  "easing": "ease-out"
+                },
+                "out": {
+                  "type": "fade",
+                  "duration": 300,
+                  "easing": "ease-in"
+                }
               }
             }
           ]
@@ -299,10 +385,13 @@
           "clips": [
             {
               "id": "timeline_ring",
-              "type": "shape",
-              "shape": "ellipse",
-              "stroke": "#ff5d73",
+              "type": "highlight",
+              "kind": "frame",
+              "color": "#ff5d73",
               "strokeWidth": 8,
+              "radius": 60,
+              "pulse": true,
+              "label": "The playhead marks the current time",
               "start": 3000,
               "duration": 3000,
               "frame": {
@@ -310,9 +399,28 @@
                 "y": 420,
                 "width": 180,
                 "height": 120
+              },
+              "animations": {
+                "in": {
+                  "type": "fade",
+                  "duration": 300,
+                  "easing": "ease-out"
+                }
               }
             }
           ]
+        }
+      ],
+      "markers": [
+        {
+          "id": "marker_clips",
+          "time": 3000,
+          "title": "Exact timing"
+        },
+        {
+          "id": "marker_auto",
+          "time": 6000,
+          "title": "Automatic transitions"
         }
       ]
     },
@@ -395,6 +503,14 @@
                 "y": 260,
                 "width": 440,
                 "height": 300
+              },
+              "animations": {
+                "in": {
+                  "type": "slide",
+                  "direction": "right",
+                  "duration": 700,
+                  "easing": "ease-out"
+                }
               }
             }
           ]
@@ -413,6 +529,13 @@
               "duration": 1500
             }
           ]
+        }
+      ],
+      "markers": [
+        {
+          "id": "marker_audio",
+          "time": 8500,
+          "title": "Audio clip"
         }
       ]
     }

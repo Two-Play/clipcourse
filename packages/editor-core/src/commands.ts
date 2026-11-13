@@ -9,7 +9,16 @@
  */
 import type { Asset, Chapter, Clip, Course, Track } from '@clipcourse/format';
 import { current, isDraft } from 'immer';
-import { findClip, findTrack, getChapter, contentEnd } from './document.js';
+import {
+  chapterIndexById,
+  contentEnd,
+  findClip,
+  findTrack,
+  getChapter,
+  sameScope,
+  trackGroups,
+  type IdFactory,
+} from './document.js';
 import { nearestFreeStart, resizeLimits } from './placement.js';
 
 export type Recipe = (draft: Course) => void;
@@ -27,6 +36,12 @@ function requireTrack(course: Course, trackId: string) {
   const location = findTrack(course, trackId);
   if (!location) throw new Error(`Unknown track "${trackId}"`);
   return location;
+}
+
+/** Grows chapter `index` (no-op for the course layer, index -1). */
+function growChapterAt(draft: Course, index: number) {
+  const chapter = draft.chapters[index];
+  if (chapter) growChapter(chapter);
 }
 
 /** Grows the chapter so all clips fit. Never shrinks it. */
@@ -96,8 +111,8 @@ export const addTrack =
 export const removeTrack =
   (trackId: string): Recipe =>
   (draft) => {
-    const { chapterIndex, trackIndex } = requireTrack(draft, trackId);
-    draft.chapters[chapterIndex]!.tracks.splice(trackIndex, 1);
+    const { tracks, trackIndex } = requireTrack(draft, trackId);
+    tracks.splice(trackIndex, 1);
   };
 
 export const updateTrack =
@@ -116,8 +131,7 @@ export const updateTrack =
 export const moveTrack =
   (trackId: string, toIndex: number): Recipe =>
   (draft) => {
-    const { chapterIndex, trackIndex } = requireTrack(draft, trackId);
-    const tracks = draft.chapters[chapterIndex]!.tracks;
+    const { tracks, trackIndex } = requireTrack(draft, trackId);
     const [track] = tracks.splice(trackIndex, 1);
     tracks.splice(Math.max(0, Math.min(toIndex, tracks.length)), 0, track!);
   };
@@ -132,15 +146,15 @@ export const addClip =
     const placed = { ...clip, start: nearestFreeStart(track, clip.start, clip.duration) } as Clip;
     track.clips.push(placed);
     sortClips(track);
-    growChapter(draft.chapters[chapterIndex]!);
+    growChapterAt(draft, chapterIndex);
   };
 
 export const removeClips =
   (clipIds: readonly string[]): Recipe =>
   (draft) => {
     const ids = new Set(clipIds);
-    for (const chapter of draft.chapters) {
-      for (const track of chapter.tracks) track.clips = track.clips.filter((c) => !ids.has(c.id));
+    for (const { tracks } of trackGroups(draft)) {
+      for (const track of tracks) track.clips = track.clips.filter((c) => !ids.has(c.id));
     }
   };
 
@@ -154,7 +168,7 @@ export const moveClip =
   (draft) => {
     const from = requireClip(draft, clipId);
     const target = trackId ? requireTrack(draft, trackId) : from;
-    if (target.chapterIndex !== from.chapterIndex)
+    if (!sameScope(target.scope, from.scope))
       throw new Error('Clips can only move within a chapter');
     const clip = from.track.clips[from.clipIndex]!;
     const resolved = nearestFreeStart(target.track, start, clip.duration, new Set([clipId]));
@@ -162,7 +176,7 @@ export const moveClip =
     clip.start = resolved;
     target.track.clips.push(clip);
     sortClips(target.track);
-    growChapter(draft.chapters[from.chapterIndex]!);
+    growChapterAt(draft, from.chapterIndex);
   };
 
 /**
@@ -194,7 +208,7 @@ export const resizeClip =
       clip.duration = end - newStart;
       clip.start = newStart;
     }
-    growChapter(draft.chapters[chapterIndex]!);
+    growChapterAt(draft, chapterIndex);
   };
 
 /** Applies an arbitrary change to one clip (used by the properties panel). */
@@ -210,7 +224,7 @@ export const updateClip =
     clip.start = Math.max(0, Math.round(clip.start));
     clip.duration = Math.max(MIN_CLIP_DURATION, Math.round(clip.duration));
     sortClips(track);
-    growChapter(draft.chapters[chapterIndex]!);
+    growChapterAt(draft, chapterIndex);
   };
 
 /** Splits a clip at `time` into two clips; the second gets `newId`. */
@@ -243,7 +257,7 @@ export const duplicateClip =
     copy.start = nearestFreeStart(track, clip.start + clip.duration, clip.duration);
     track.clips.push(copy);
     sortClips(track);
-    growChapter(draft.chapters[chapterIndex]!);
+    growChapterAt(draft, chapterIndex);
   };
 
 // --- Assets --------------------------------------------------------------------
@@ -285,3 +299,121 @@ export const removeAsset =
     if (users.length > 0) throw new Error(`Asset "${assetId}" is used by ${users.join(', ')}`);
     delete draft.assets[assetId];
   };
+
+// --- Chapters ------------------------------------------------------------------
+
+/** Deep copy of a chapter with fresh ids for the chapter, tracks, clips and markers. */
+export function cloneChapter(chapter: Chapter, newId: IdFactory): Chapter {
+  const copy = structuredClone(isDraft(chapter) ? current(chapter) : chapter);
+  copy.id = newId('chapter');
+  for (const track of copy.tracks) {
+    track.id = newId('track');
+    for (const clip of track.clips) clip.id = newId('clip');
+  }
+  for (const marker of copy.markers ?? []) marker.id = newId('marker');
+  return copy;
+}
+
+export const addChapter =
+  (chapter: Chapter, index?: number): Recipe =>
+  (draft) => {
+    const at =
+      index === undefined
+        ? draft.chapters.length
+        : Math.max(0, Math.min(index, draft.chapters.length));
+    draft.chapters.splice(at, 0, chapter);
+  };
+
+/** Removes a chapter. The last remaining chapter cannot be removed. */
+export const removeChapter =
+  (chapterId: string): Recipe =>
+  (draft) => {
+    if (draft.chapters.length <= 1) throw new Error('A course needs at least one chapter');
+    const index = chapterIndexById(draft, chapterId);
+    if (index < 0) throw new Error(`Unknown chapter "${chapterId}"`);
+    draft.chapters.splice(index, 1);
+  };
+
+export const moveChapter =
+  (chapterId: string, toIndex: number): Recipe =>
+  (draft) => {
+    const index = chapterIndexById(draft, chapterId);
+    if (index < 0) throw new Error(`Unknown chapter "${chapterId}"`);
+    const [chapter] = draft.chapters.splice(index, 1);
+    draft.chapters.splice(Math.max(0, Math.min(toIndex, draft.chapters.length)), 0, chapter!);
+  };
+
+/** Inserts a copy of a chapter right after it. Returns the copy's id via `onCreated`. */
+export const duplicateChapter =
+  (chapterId: string, newId: IdFactory, onCreated?: (id: string) => void): Recipe =>
+  (draft) => {
+    const index = chapterIndexById(draft, chapterId);
+    if (index < 0) throw new Error(`Unknown chapter "${chapterId}"`);
+    const copy = cloneChapter(draft.chapters[index]!, newId);
+    copy.title = `${copy.title} (copy)`.slice(0, 500);
+    draft.chapters.splice(index + 1, 0, copy);
+    onCreated?.(copy.id);
+  };
+
+// --- Markers -------------------------------------------------------------------
+
+export const addMarker =
+  (chapterId: string, marker: { id: string; time: number; title: string }): Recipe =>
+  (draft) => {
+    const chapter = getChapter(draft, chapterId);
+    const markers = (chapter.markers ??= []);
+    markers.push({ ...marker, time: Math.max(0, Math.round(marker.time)) });
+    markers.sort((a, b) => a.time - b.time);
+  };
+
+export const updateMarker =
+  (chapterId: string, markerId: string, props: { time?: number; title?: string }): Recipe =>
+  (draft) => {
+    const chapter = getChapter(draft, chapterId);
+    const marker = chapter.markers?.find((m) => m.id === markerId);
+    if (!marker) throw new Error(`Unknown marker "${markerId}"`);
+    if (props.time !== undefined)
+      marker.time = Math.min(Math.max(0, Math.round(props.time)), chapter.duration);
+    if (props.title !== undefined && props.title.trim()) marker.title = props.title.slice(0, 500);
+    chapter.markers!.sort((a, b) => a.time - b.time);
+  };
+
+export const removeMarker =
+  (chapterId: string, markerId: string): Recipe =>
+  (draft) => {
+    const chapter = getChapter(draft, chapterId);
+    chapter.markers = (chapter.markers ?? []).filter((m) => m.id !== markerId);
+    if (chapter.markers.length === 0) delete chapter.markers;
+  };
+
+// --- Course layer ----------------------------------------------------------------
+
+/** Adds a track that is shown in every chapter (behind or in front of chapter tracks). */
+export const addCourseTrack =
+  (
+    layer: 'background' | 'foreground',
+    track: { id: string; name?: string },
+    index?: number,
+  ): Recipe =>
+  (draft) => {
+    draft.courseLayer ??= { background: [], foreground: [] };
+    const tracks = draft.courseLayer[layer];
+    const newTrack: Track = { id: track.id, clips: [] };
+    if (track.name !== undefined) newTrack.name = track.name;
+    tracks.splice(
+      index === undefined ? tracks.length : Math.max(0, Math.min(index, tracks.length)),
+      0,
+      newTrack,
+    );
+  };
+
+/** Drops an empty course layer so documents stay minimal. */
+export const pruneCourseLayer = (): Recipe => (draft) => {
+  if (
+    draft.courseLayer &&
+    draft.courseLayer.background.length === 0 &&
+    draft.courseLayer.foreground.length === 0
+  ) {
+    delete draft.courseLayer;
+  }
+};

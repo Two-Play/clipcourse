@@ -1,6 +1,13 @@
 // SPDX-License-Identifier: MIT
 /**
- * Clipcourse course format, version 1.
+ * Clipcourse course format, version 2.
+ *
+ * Version history:
+ * - 1: courses, chapters, tracks, clips (image, text, shape, box, video,
+ *      audio), course layer, captions.
+ * - 2: clip animations (in/out), highlight and progress clips, chapter
+ *      markers. Purely additive: every v1 document is a valid v2 document
+ *      once its version number is raised.
  *
  * Conventions:
  * - All times and durations are integer milliseconds.
@@ -9,7 +16,7 @@
  * - Track order is the stacking order: `tracks[0]` is the back-most layer.
  */
 
-export const FORMAT_VERSION = 1 as const;
+export const FORMAT_VERSION = 2 as const;
 
 export interface Course {
   formatVersion: typeof FORMAT_VERSION;
@@ -80,7 +87,16 @@ export interface Chapter {
   transition: ChapterTransition;
   /** Optional chapter background color, drawn above the stage background. */
   background?: string;
+  /** Jump points inside the chapter, shown in the table of contents. */
+  markers?: Marker[];
   tracks: Track[];
+}
+
+export interface Marker {
+  id: string;
+  /** Position on the chapter timeline, ms. */
+  time: number;
+  title: string;
 }
 
 export interface Track {
@@ -114,6 +130,28 @@ interface VisualClipBase extends ClipBase {
   frame: Frame;
   /** 0..1, default 1. */
   opacity?: number;
+  /** Entrance and exit animations. */
+  animations?: ClipAnimations;
+}
+
+export type AnimationType = 'fade' | 'slide' | 'zoom';
+export type SlideDirection = 'left' | 'right' | 'up' | 'down';
+export type Easing = 'linear' | 'ease-in' | 'ease-out' | 'ease-in-out';
+
+export interface Animation {
+  type: AnimationType;
+  /** ms; clamped to the clip duration when played. */
+  duration: number;
+  /** For "slide": the side the clip comes from (in) or leaves to (out). */
+  direction?: SlideDirection;
+  easing?: Easing;
+}
+
+export interface ClipAnimations {
+  /** Plays at the start of the clip. */
+  in?: Animation;
+  /** Plays at the end of the clip. */
+  out?: Animation;
 }
 
 export type ImageFit = 'contain' | 'cover' | 'fill';
@@ -188,7 +226,45 @@ export interface AudioClip extends ClipBase, MediaProps {
   type: 'audio';
 }
 
-export type VisualClip = ImageClip | TextClip | ShapeClip | BoxClip | VideoClip;
+export type HighlightKind =
+  /** Semi-transparent area, like a text marker. */
+  | 'marker'
+  /** Outline around the area. */
+  | 'frame'
+  /** Arrow pointing at the right edge of the frame (rotate the frame to aim). */
+  | 'arrow'
+  /** Dims everything except the area. */
+  | 'spotlight';
+
+export interface HighlightClip extends VisualClipBase {
+  type: 'highlight';
+  kind: HighlightKind;
+  /** Main color, default depends on the kind. */
+  color?: string;
+  /** Line width for frame and arrow, default 8. */
+  strokeWidth?: number;
+  /** Corner radius for marker, frame and spotlight. */
+  radius?: number;
+  /** Gently pulses while visible to draw attention. */
+  pulse?: boolean;
+  /** Read out by screen readers when the highlight appears. */
+  label?: string;
+}
+
+/**
+ * Shows how far the learner is in the whole course, based on the current
+ * chapter and position (not on history), so it stays deterministic.
+ */
+export interface ProgressClip extends VisualClipBase {
+  type: 'progress';
+  fill?: string;
+  /** Color of the unfilled part. */
+  background?: string;
+  radius?: number;
+}
+
+export type VisualClip =
+  ImageClip | TextClip | ShapeClip | BoxClip | VideoClip | HighlightClip | ProgressClip;
 export type MediaClip = VideoClip | AudioClip;
 export type Clip = VisualClip | AudioClip;
 export type ClipType = Clip['type'];
