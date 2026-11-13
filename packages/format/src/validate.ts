@@ -1,0 +1,138 @@
+// SPDX-License-Identifier: MIT
+import * as v from 'valibot';
+import { CourseSchema } from './schema.js';
+import { migrateCourse, FormatVersionError } from './migrate.js';
+import type { Course, Track } from './types.js';
+
+export interface ValidationIssue {
+  /** JSON-pointer-like path, e.g. "/chapters/0/tracks/1/clips/2/assetId". */
+  path: string;
+  message: string;
+}
+
+export type ValidationResult =
+  | { ok: true; course: Course; warnings: ValidationIssue[] }
+  | { ok: false; issues: ValidationIssue[] };
+
+/**
+ * Migrates `input` to the current format version and validates it, both
+ * structurally (schema) and semantically (unique ids, asset references).
+ */
+export function validateCourse(input: unknown): ValidationResult {
+  let migrated: unknown;
+  try {
+    migrated = migrateCourse(input);
+  } catch (error) {
+    if (error instanceof FormatVersionError) {
+      return { ok: false, issues: [{ path: '/formatVersion', message: error.message }] };
+    }
+    throw error;
+  }
+
+  const parsed = v.safeParse(CourseSchema, migrated);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      issues: parsed.issues.map((issue) => ({
+        path: toPointer(issue.path),
+        message: issue.message,
+      })),
+    };
+  }
+
+  const course = parsed.output;
+  const issues: ValidationIssue[] = [];
+  const warnings: ValidationIssue[] = [];
+  checkSemantics(course, issues, warnings);
+  return issues.length > 0 ? { ok: false, issues } : { ok: true, course, warnings };
+}
+
+/** Like {@link validateCourse}, but throws on invalid input. */
+export function parseCourse(input: unknown): Course {
+  const result = validateCourse(input);
+  if (!result.ok) {
+    const details = result.issues.map((i) => `${i.path}: ${i.message}`).join('\n');
+    throw new Error(`Invalid course:\n${details}`);
+  }
+  return result.course;
+}
+
+function toPointer(path: v.IssuePathItem[] | undefined): string {
+  if (!path || path.length === 0) return '/';
+  return '/' + path.map((item) => String(item.key)).join('/');
+}
+
+function checkSemantics(course: Course, issues: ValidationIssue[], warnings: ValidationIssue[]) {
+  const chapterIds = new Set<string>();
+  const trackIds = new Set<string>();
+  const clipIds = new Set<string>();
+
+  const checkUnique = (set: Set<string>, value: string, path: string, what: string) => {
+    if (set.has(value)) issues.push({ path, message: `Duplicate ${what} id "${value}"` });
+    set.add(value);
+  };
+
+  const checkAsset = (assetId: string, kinds: string[], path: string) => {
+    const asset = course.assets[assetId];
+    if (!asset) {
+      issues.push({ path, message: `Unknown asset "${assetId}"` });
+    } else if (!kinds.includes(asset.kind)) {
+      issues.push({
+        path,
+        message: `Asset "${assetId}" has kind "${asset.kind}", expected ${kinds.join(' or ')}`,
+      });
+    }
+  };
+
+  const checkTracks = (tracks: Track[], basePath: string, chapterDuration: number | null) => {
+    tracks.forEach((track, ti) => {
+      const trackPath = `${basePath}/${ti}`;
+      checkUnique(trackIds, track.id, `${trackPath}/id`, 'track');
+      track.clips.forEach((clip, ci) => {
+        const clipPath = `${trackPath}/clips/${ci}`;
+        checkUnique(clipIds, clip.id, `${clipPath}/id`, 'clip');
+        switch (clip.type) {
+          case 'image':
+            checkAsset(clip.assetId, ['image'], `${clipPath}/assetId`);
+            break;
+          case 'video':
+            checkAsset(clip.assetId, ['video'], `${clipPath}/assetId`);
+            break;
+          case 'audio':
+            checkAsset(clip.assetId, ['audio', 'video'], `${clipPath}/assetId`);
+            break;
+          default:
+            break;
+        }
+        if ((clip.type === 'video' || clip.type === 'audio') && clip.captionsAssetId) {
+          checkAsset(clip.captionsAssetId, ['captions'], `${clipPath}/captionsAssetId`);
+        }
+        if (chapterDuration !== null && clip.start + clip.duration > chapterDuration) {
+          warnings.push({
+            path: clipPath,
+            message: `Clip "${clip.id}" ends after the chapter and will be cut off`,
+          });
+        }
+      });
+    });
+  };
+
+  if (course.courseLayer) {
+    checkTracks(course.courseLayer.background, '/courseLayer/background', null);
+    checkTracks(course.courseLayer.foreground, '/courseLayer/foreground', null);
+  }
+
+  course.chapters.forEach((chapter, i) => {
+    checkUnique(chapterIds, chapter.id, `/chapters/${i}/id`, 'chapter');
+    checkTracks(chapter.tracks, `/chapters/${i}/tracks`, chapter.duration);
+  });
+
+  for (const [assetId, asset] of Object.entries(course.assets)) {
+    if (/^https?:\/\//.test(asset.src)) {
+      warnings.push({
+        path: `/assets/${assetId}/src`,
+        message: `Asset "${assetId}" is external; the course needs network access to show it`,
+      });
+    }
+  }
+}
