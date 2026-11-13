@@ -29,6 +29,9 @@ importers:
       typescript-eslint:
         specifier: 8.72.2
         version: 8.72.2(eslint@10.14.0)(typescript@6.0.3)
+      vite:
+        specifier: 8.3.8
+        version: 8.3.8(@types/node@24.19.2)
       vitest:
         specifier: 5.1.0
         version: 5.1.0(@types/node@24.19.2)(happy-dom@21.0.4)(vite@8.3.8(@types/node@24.19.2))
@@ -42,6 +45,12 @@ importers:
       '@valibot/to-json-schema':
         specifier: 1.8.0
         version: 1.8.0(valibot@1.5.0(typescript@6.0.3))
+
+  packages/player:
+    dependencies:
+      '@clipcourse/format':
+        specifier: workspace:*
+        version: link:../format
 
 packages:
 
