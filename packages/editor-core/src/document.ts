@@ -10,6 +10,7 @@ import type {
   Frame,
   Track,
 } from '@clipcourse/format';
+import { FORMAT_VERSION } from '@clipcourse/format';
 
 export interface TrackLocation {
   chapterIndex: number;
@@ -207,7 +208,7 @@ export function clipTypeForAsset(kind: AssetKind): ClipType | null {
 export function createEmptyCourse(newId: IdFactory = randomId, title = 'Untitled course'): Course {
   const chapterId = newId('chapter');
   return {
-    formatVersion: 1,
+    formatVersion: FORMAT_VERSION,
     id: newId('course'),
     title,
     language: 'en',

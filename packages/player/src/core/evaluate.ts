@@ -7,6 +7,7 @@
  * chapter always produce the same picture for the same time.
  */
 import type { Chapter, Clip, Course, Track } from '@clipcourse/format';
+import { animationState, IDENTITY, type AnimationState } from './animation.js';
 
 export type LayerName = 'background' | 'chapter' | 'foreground';
 
@@ -22,6 +23,8 @@ export interface ActiveClip {
   mediaTime: number | null;
   /** True if the clip's track is muted. */
   trackMuted: boolean;
+  /** Animated opacity, offset and scale (identity for audio). */
+  animation: AnimationState;
 }
 
 export interface SceneState {
@@ -29,6 +32,13 @@ export interface SceneState {
   /** Chapter time used for evaluation (clamped to [0, duration]). */
   time: number;
   clips: ActiveClip[];
+  /** Position in the whole course, 0..1 (for progress clips). */
+  courseProgress: number;
+}
+
+export interface EvaluateOptions {
+  /** Replace slide and zoom by fades and disable pulsing. */
+  reducedMotion?: boolean;
 }
 
 /** Clamps a time to the chapter's timeline and rounds to whole ms. */
@@ -67,7 +77,23 @@ export function orderedTracks(course: Course, chapter: Chapter): OrderedTrack[] 
   return result;
 }
 
-export function evaluate(course: Course, chapterIndex: number, time: number): SceneState {
+/** Position in the whole course (0..1), by duration. */
+export function courseProgress(course: Course, chapterIndex: number, time: number): number {
+  let total = 0;
+  let before = 0;
+  course.chapters.forEach((chapter, i) => {
+    total += chapter.duration;
+    if (i < chapterIndex) before += chapter.duration;
+  });
+  return total > 0 ? Math.min(1, (before + time) / total) : 0;
+}
+
+export function evaluate(
+  course: Course,
+  chapterIndex: number,
+  time: number,
+  options: EvaluateOptions = {},
+): SceneState {
   const chapter = course.chapters[chapterIndex];
   if (!chapter) throw new RangeError(`No chapter at index ${chapterIndex}`);
   const t = clampTime(chapter, time);
@@ -95,9 +121,13 @@ export function evaluate(course: Course, chapterIndex: number, time: number): Sc
         localTime,
         mediaTime,
         trackMuted: track.muted === true,
+        animation:
+          clip.type === 'audio'
+            ? IDENTITY
+            : animationState(clip, localTime, course.stage, options.reducedMotion === true),
       });
     }
   }
 
-  return { chapterIndex, time: t, clips };
+  return { chapterIndex, time: t, clips, courseProgress: courseProgress(course, chapterIndex, t) };
 }

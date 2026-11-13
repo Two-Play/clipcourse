@@ -17,6 +17,11 @@ export const PLAYER_CSS = `
 .ccp-text{margin:0;padding:0;text-transform:none;letter-spacing:normal;text-indent:0;font-family:inherit;line-height:1.25;border:0;background:none;white-space:pre-wrap;overflow-wrap:break-word;font-weight:inherit;color:#fff}
 .ccp-clip-box .ccp-text{color:inherit}
 .ccp-audio{display:none}
+.ccp-clip-highlight,.ccp-clip-progress{pointer-events:none}
+.ccp-clip-highlight{overflow:visible}
+.ccp-hl-fill{position:absolute;inset:0;opacity:.4}
+.ccp-progress-fill{height:100%;width:0;border-radius:inherit}
+.ccp-stage .ccp-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .ccp-captions{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);z-index:100000;
   max-width:80%;width:max-content;padding:.15em .5em;border-radius:6px;background:rgba(0,0,0,.78);
   color:#fff;font-size:44px;line-height:1.3;text-align:center;white-space:pre-line;pointer-events:none}
@@ -50,6 +55,24 @@ export const PLAYER_CSS = `
   clip:rect(0 0 0 0);white-space:nowrap;border:0}
 .ccp-error{position:absolute;left:16px;top:16px;z-index:3;padding:.4em .8em;border-radius:6px;
   background:#b3261e;color:#fff}
+.ccp-seekwrap{position:relative;flex:1 1 160px;min-width:100px;display:flex;align-items:center}
+.ccp-seekwrap .ccp-seek{flex:1;width:100%}
+.ccp-ticks{position:absolute;left:8px;right:8px;top:50%;height:0;pointer-events:none}
+.ccp-tick{position:absolute;top:-8px;width:2px;height:16px;margin-left:-1px;background:#ffd166;border-radius:1px}
+.ccp-toc{position:absolute;top:0;bottom:0;left:0;z-index:4;width:min(360px,85%);overflow:auto;padding:12px;
+  background:rgba(20,22,26,.97);box-shadow:4px 0 24px rgba(0,0,0,.5)}
+.ccp-toc-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.ccp-toc-head h2{margin:0;font-size:16px}
+.ccp-toc ol{list-style:none;margin:0;padding:0}
+.ccp-toc li{margin:2px 0}
+.ccp-toc button.ccp-toc-item{display:flex;width:100%;gap:8px;align-items:baseline;text-align:left;padding:8px 10px;
+  border:0;border-radius:6px;background:transparent;color:var(--ccp-fg);font:inherit;cursor:pointer}
+.ccp-toc button.ccp-toc-item:hover{background:rgba(255,255,255,.08)}
+.ccp-toc button[aria-current="true"]{background:rgba(79,140,255,.2)}
+.ccp-toc-num{color:var(--ccp-muted);min-width:1.8em}
+.ccp-toc-title{flex:1}
+.ccp-toc-state{color:#06d6a0;font-size:12px}
+.ccp-toc ol ol button.ccp-toc-item{padding:4px 10px 4px 38px;font-size:13px;color:var(--ccp-muted)}
 @media (min-width:640px){.ccp-title{flex:0 1 auto;order:0;max-width:40%}}
 `;
 
@@ -73,6 +96,10 @@ export const ICONS = {
   next: icon('M16 6h2v12h-2zM6 18l8.5-6L6 6z'),
   captions: icon(
     'M19 4H5a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zm-8 7H9.5v-.5h-2v3h2V13H11v1a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1zm7 0h-1.5v-.5h-2v3h2V13H18v1a1 1 0 0 1-1 1h-3a1 1 0 0 1-1-1v-4a1 1 0 0 1 1-1h3a1 1 0 0 1 1 1z',
+  ),
+  contents: icon('M4 6h2v2H4zm4 0h12v2H8zm-4 5h2v2H4zm4 0h12v2H8zm-4 5h2v2H4zm4 0h12v2H8z'),
+  close: icon(
+    'M18.3 5.7 12 12l6.3 6.3-1.4 1.4L10.6 13.4 4.3 19.7l-1.4-1.4L9.2 12 2.9 5.7l1.4-1.4 6.3 6.3 6.3-6.3z',
   ),
   replay: icon('M12 5V1L7 6l5 5V7a6 6 0 1 1-6 6H4a8 8 0 1 0 8-8z'),
 };

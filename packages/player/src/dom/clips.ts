@@ -96,6 +96,48 @@ export function createClipView(
       }
       break;
     }
+    case 'highlight': {
+      root.setAttribute('aria-hidden', clip.label ? 'false' : 'true');
+      root.classList.add(`ccp-hl-${clip.kind}`);
+      const radius = clip.radius ?? 12;
+      if (clip.kind === 'marker') {
+        const fill = doc.createElement('div');
+        fill.className = 'ccp-hl-fill';
+        fill.style.background = clip.color ?? '#ffdd00';
+        fill.style.borderRadius = `${radius}px`;
+        root.append(fill);
+      } else if (clip.kind === 'frame') {
+        root.style.border = `${clip.strokeWidth ?? 8}px solid ${clip.color ?? '#ff5d73'}`;
+        root.style.borderRadius = `${radius}px`;
+      } else if (clip.kind === 'spotlight') {
+        root.style.borderRadius = `${radius}px`;
+        root.style.boxShadow = `0 0 0 100000px ${clip.color ?? 'rgba(0,0,0,0.65)'}`;
+      } else {
+        root.append(
+          createLineSvg(doc, clip.frame, clip.color ?? '#ff5d73', clip.strokeWidth ?? 8, true),
+        );
+      }
+      if (clip.label) {
+        const label = doc.createElement('span');
+        label.className = 'ccp-sr';
+        label.textContent = clip.label;
+        root.append(label);
+      }
+      break;
+    }
+    case 'progress': {
+      root.setAttribute('role', 'progressbar');
+      root.setAttribute('aria-valuemin', '0');
+      root.setAttribute('aria-valuemax', '100');
+      root.setAttribute('aria-label', 'Course progress');
+      root.style.background = clip.background ?? 'rgba(255,255,255,0.25)';
+      root.style.borderRadius = `${clip.radius ?? 999}px`;
+      const fill = doc.createElement('div');
+      fill.className = 'ccp-progress-fill';
+      fill.style.background = clip.fill ?? '#4f8cff';
+      root.append(fill);
+      break;
+    }
     case 'video': {
       const video = mediaElement('video', clip.assetId) as HTMLVideoElement;
       video.playsInline = true;
@@ -119,7 +161,6 @@ function applyFrame(el: HTMLElement, frame: Frame) {
   el.style.top = `${frame.y}px`;
   el.style.width = `${frame.width}px`;
   el.style.height = `${frame.height}px`;
-  if (frame.rotation) el.style.transform = `rotate(${frame.rotation}deg)`;
 }
 
 function applyBoxStyle(
