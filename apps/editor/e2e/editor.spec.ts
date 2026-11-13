@@ -280,7 +280,9 @@ test.describe('playback and preview', () => {
   test('space plays from the playhead and stops at the chapter end', async ({ page }) => {
     await page.clock.install();
     await openFresh(page);
-    await page.clock.pauseAt(Date.now() + 1000);
+    // Freeze relative to the page's own clock (never in the past on a busy machine).
+    const now = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(now + 1000);
     await press(page, 'Text');
     await page.locator('.tl-ruler').click({ position: { x: 5, y: 10 } });
     await page.keyboard.press('Space');
@@ -289,7 +291,9 @@ test.describe('playback and preview', () => {
     // Within a few animation frames of the requested time.
     expect(playhead).toBeGreaterThanOrEqual(1950);
     expect(playhead).toBeLessThanOrEqual(2060);
-    await page.clock.runFor(10000);
+    // Jump close to the end instead of simulating hundreds of frames.
+    await page.evaluate(() => window.__session!.store.getState().setPlayhead(9000));
+    await page.clock.runFor(1500);
     const state = await editorState(page);
     expect(state.playhead).toBe(10000);
     await expect(page.getByRole('button', { name: 'Play', exact: true }).first()).toBeVisible();
