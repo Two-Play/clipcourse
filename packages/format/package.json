@@ -9,7 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./validation": "./src/validation.ts",
-    "./schema/course.v1.schema.json": "./schema/course.v1.schema.json"
+    "./schema/course.v1.schema.json": "./schema/course.v1.schema.json",
+    "./schema/course.v2.schema.json": "./schema/course.v2.schema.json"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

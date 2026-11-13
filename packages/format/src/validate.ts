@@ -133,8 +133,18 @@ function checkSemantics(course: Course, issues: ValidationIssue[], warnings: Val
     checkTracks(course.courseLayer.foreground, '/courseLayer/foreground', null);
   }
 
+  const markerIds = new Set<string>();
   course.chapters.forEach((chapter, i) => {
     checkUnique(chapterIds, chapter.id, `/chapters/${i}/id`, 'chapter');
+    chapter.markers?.forEach((marker, m) => {
+      checkUnique(markerIds, marker.id, `/chapters/${i}/markers/${m}/id`, 'marker');
+      if (marker.time > chapter.duration) {
+        warnings.push({
+          path: `/chapters/${i}/markers/${m}`,
+          message: `Marker "${marker.title}" is after the end of chapter "${chapter.title}"`,
+        });
+      }
+    });
     checkTracks(chapter.tracks, `/chapters/${i}/tracks`, chapter.duration);
   });
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * Runtime schema for format version 1 (Valibot).
+ * Runtime schema for the current format version (Valibot).
  *
  * This module is used by the editor, the exporter and tests. The player does
  * not import it, so exported courses do not ship a validator.
@@ -69,10 +69,23 @@ const clipBase = {
   duration: positiveMs,
 };
 
+const AnimationSchema = v.strictObject({
+  type: v.picklist(['fade', 'slide', 'zoom']),
+  duration: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(600000)),
+  direction: v.exactOptional(v.picklist(['left', 'right', 'up', 'down'])),
+  easing: v.exactOptional(v.picklist(['linear', 'ease-in', 'ease-out', 'ease-in-out'])),
+});
+
 const visualBase = {
   ...clipBase,
   frame: FrameSchema,
   opacity: v.exactOptional(unit),
+  animations: v.exactOptional(
+    v.strictObject({
+      in: v.exactOptional(AnimationSchema),
+      out: v.exactOptional(AnimationSchema),
+    }),
+  ),
 };
 
 const fit = v.picklist(['contain', 'cover', 'fill']);
@@ -136,6 +149,25 @@ const AudioClipSchema = v.strictObject({
   type: v.literal('audio'),
 });
 
+const HighlightClipSchema = v.strictObject({
+  ...visualBase,
+  type: v.literal('highlight'),
+  kind: v.picklist(['marker', 'frame', 'arrow', 'spotlight']),
+  color: v.exactOptional(color),
+  strokeWidth: v.exactOptional(nonNegative),
+  radius: v.exactOptional(nonNegative),
+  pulse: v.exactOptional(v.boolean()),
+  label: v.exactOptional(v.pipe(v.string(), v.maxLength(500))),
+});
+
+const ProgressClipSchema = v.strictObject({
+  ...visualBase,
+  type: v.literal('progress'),
+  fill: v.exactOptional(color),
+  background: v.exactOptional(color),
+  radius: v.exactOptional(nonNegative),
+});
+
 const ClipSchema = v.variant('type', [
   ImageClipSchema,
   TextClipSchema,
@@ -143,6 +175,8 @@ const ClipSchema = v.variant('type', [
   BoxClipSchema,
   VideoClipSchema,
   AudioClipSchema,
+  HighlightClipSchema,
+  ProgressClipSchema,
 ]);
 
 const TrackSchema = v.strictObject({
@@ -162,11 +196,20 @@ const ChapterSchema = v.strictObject({
     v.strictObject({ mode: v.literal('auto') }),
   ]),
   background: v.exactOptional(color),
+  markers: v.exactOptional(
+    v.array(
+      v.strictObject({
+        id,
+        time: ms,
+        title: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+      }),
+    ),
+  ),
   tracks: v.array(TrackSchema),
 });
 
 export const CourseSchema = v.strictObject({
-  formatVersion: v.literal(1),
+  formatVersion: v.literal(2),
   id,
   title: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
   language: v.pipe(v.string(), v.regex(LANGUAGE_PATTERN, 'Invalid language tag')),
