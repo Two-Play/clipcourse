@@ -1,0 +1,23 @@
+{
+  "name": "@clipcourse/format",
+  "version": "0.1.0",
+  "description": "Clipcourse course format: types, JSON schema and migrations",
+  "author": "Philippe",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./validation": "./src/validation.ts",
+    "./schema/course.v1.schema.json": "./schema/course.v1.schema.json"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "valibot": "1.5.0"
+  },
+  "devDependencies": {
+    "@valibot/to-json-schema": "1.8.0"
+  }
+}

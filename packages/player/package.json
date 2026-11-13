@@ -1,0 +1,19 @@
+{
+  "name": "@clipcourse/player",
+  "version": "0.1.0",
+  "description": "Clipcourse player runtime: plays Clipcourse courses in the browser. Ships inside every exported course.",
+  "author": "Philippe",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "vite build && node ../../scripts/check-size.mjs dist/clipcourse-player.iife.js 16000"
+  },
+  "dependencies": {
+    "@clipcourse/format": "workspace:*"
+  }
+}
