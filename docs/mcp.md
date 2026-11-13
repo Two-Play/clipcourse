@@ -61,11 +61,30 @@ Then ask, for example: _"Create a course 'Fire safety' with three short
 chapters, add a title and key points to each, check it and export it for
 Moodle."_
 
+## Live editing in the open editor
+
+Start the server with `--bridge` (works with stdio and `--http`):
+
+```bash
+claude mcp add clipcourse -- node /path/to/clipcourse-mcp.js --root ~/Courses --bridge
+```
+
+1. Ask the assistant to connect to the editor. It calls `pair_editor` and
+   tells you a 6-digit code.
+2. In the editor, click **✦ AI assistant** and enter the code.
+3. The open course appears to the assistant as project `editor:1`. Its
+   changes show up immediately; each one is a normal undo step (Ctrl+Z).
+   Your own edits reach the assistant too. **Disconnect** ends the session.
+
+Media imported by the assistant is sent to the editor. `export_scorm` also
+works on a connected editor; give it an `outputPath` inside a root folder.
+
 ## Tools
 
 | Area     | Tools                                                                                                               |
 | -------- | ------------------------------------------------------------------------------------------------------------------- |
 | Projects | `list_projects`, `create_project`, `get_course` (outline or JSON), `set_course`, `list_templates`                   |
+| Live     | `pair_editor` (with `--bridge`)                                                                                     |
 | Chapters | `add_chapter` (optionally from a template), `update_chapter`, `move_chapter`, `duplicate_chapter`, `delete_chapter` |
 | Markers  | `add_marker`, `update_marker`, `delete_marker`                                                                      |
 | Tracks   | `add_track` (chapter or course layer), `update_track`, `delete_track`                                               |
@@ -100,4 +119,9 @@ course is rejected with an explanation.
   downloaded file is kept in the course (`extensions["clipcourse.assetSources"]`)
   so you can check its license. Disable downloads with `--no-downloads`.
 
-Live editing in the open editor follows in the next step.
+- **Live bridge:** WebSocket on 127.0.0.1 only. Connections are accepted
+  only from known editor origins (the local browser editor and the desktop
+  app; add more with `--editor-origin`), and only with a pairing code that
+  the user types into the editor. Codes are random, one-time, expire after
+  5 minutes and stop working after 5 wrong attempts. The editor only
+  connects to local addresses.

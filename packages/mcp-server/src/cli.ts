@@ -10,6 +10,8 @@
 import { parseArgs } from 'node:util';
 import runtime from '@clipcourse/scorm-runtime/dist/clipcourse-runtime.iife.js?raw';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { DEFAULT_BRIDGE_PORT } from '@clipcourse/editor-core';
+import { DEFAULT_EDITOR_ORIGINS, startBridge } from './bridge.js';
 import { downloadMedia } from './download.js';
 import { DEFAULT_HTTP_PORT, defaultTokenFile, loadOrCreateToken, startHttpServer } from './http.js';
 import { createServer, type ServerOptions } from './server.js';
@@ -24,6 +26,10 @@ Options:
   --token-file <path>  File with the HTTP bearer token (default ${defaultTokenFile()}).
                        Created with a random token if missing.
   --no-downloads       Do not allow import_media to download from URLs.
+  --bridge             Allow live editing of the course open in the editor
+                       (WebSocket on 127.0.0.1, pairing with a code).
+  --bridge-port <n>    Bridge port (default ${DEFAULT_BRIDGE_PORT}).
+  --editor-origin <o>  Additional allowed editor origin (repeatable).
   --help               Show this help.
 `;
 
@@ -35,6 +41,9 @@ async function main() {
       port: { type: 'string' },
       'token-file': { type: 'string' },
       'no-downloads': { type: 'boolean' },
+      bridge: { type: 'boolean' },
+      'bridge-port': { type: 'string' },
+      'editor-origin': { type: 'string', multiple: true },
       help: { type: 'boolean' },
     },
   });
@@ -43,10 +52,19 @@ async function main() {
     return;
   }
   const workspace = new Workspace({ roots: values.root ?? [] });
+  const bridge = values.bridge
+    ? await startBridge({
+        workspace,
+        port: values['bridge-port'] ? Number(values['bridge-port']) : DEFAULT_BRIDGE_PORT,
+        allowedOrigins: [...DEFAULT_EDITOR_ORIGINS, ...(values['editor-origin'] ?? [])],
+      })
+    : undefined;
+  if (bridge) console.error(`Live bridge on ${bridge.url}`);
   const serverOptions: ServerOptions = {
     workspace,
     runtime: () => runtime,
     ...(values['no-downloads'] ? {} : { download: (url: string) => downloadMedia(url) }),
+    ...(bridge ? { bridge } : {}),
   };
 
   if (values.http) {

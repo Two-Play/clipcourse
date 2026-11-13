@@ -15,3 +15,5 @@ export { startHttpServer, loadOrCreateToken, defaultTokenFile, DEFAULT_HTTP_PORT
 export type { HttpServerOptions, RunningHttpServer } from './http.js';
 export { downloadMedia, isBlockedAddress, DownloadError } from './download.js';
 export type { DownloadOptions } from './download.js';
+export { startBridge, DEFAULT_EDITOR_ORIGINS, PAIRING_TTL_MS } from './bridge.js';
+export type { Bridge, BridgeOptions } from './bridge.js';

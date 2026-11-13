@@ -14,7 +14,7 @@ import {
   type Operation,
 } from '@clipcourse/editor-core';
 import { exportScorm, packageFileName } from '@clipcourse/exporter';
-import schema from '@clipcourse/format/schema/course.v2.schema.json';
+import schema from '@clipcourse/format/schema/course.v2.schema.json' with { type: 'json' };
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FORMAT_GUIDE } from './guide.js';
@@ -30,6 +30,8 @@ export interface ServerOptions {
     url: string,
   ) => Promise<{ fileName: string; mime: string; data: Uint8Array; duration?: number }>;
   version?: string;
+  /** Live bridge to open editors (pair_editor). */
+  bridge?: { url: string; createPairingCode(): { code: string; expiresAt: number } };
 }
 
 // --- Schemas -------------------------------------------------------------------------
@@ -642,7 +644,7 @@ export function createServer(options: ServerOptions): McpServer {
           'target .zip inside the allowed folders; default: <project>/exports/<title>-scorm12.zip',
         ),
     },
-    (args) => {
+    async (args) => {
       const target: ProjectTarget = workspace.open(args.project);
       const course = target.course();
       let output: string;
@@ -655,8 +657,12 @@ export function createServer(options: ServerOptions): McpServer {
         );
       else throw new Error('outputPath is required for this project');
       if (!output.endsWith('.zip')) throw new Error('outputPath must end with .zip');
+      const withFetch = target as ProjectTarget & {
+        fetchFiles?: () => Promise<Map<string, Uint8Array>>;
+      };
+      const files = withFetch.fetchFiles ? await withFetch.fetchFiles() : target.files();
       const result = exportScorm(
-        { course, files: target.files() },
+        { course, files },
         { version: args.version, runtime: options.runtime() },
       );
       mkdirSync(dirname(output), { recursive: true });
@@ -671,6 +677,26 @@ export function createServer(options: ServerOptions): McpServer {
       );
     },
   );
+
+  // --- Live editor -------------------------------------------------------------------
+
+  if (options.bridge) {
+    const bridge = options.bridge;
+    tool(
+      'pair_editor',
+      'Connects to the course that is open in the Clipcourse editor, so you can edit it live (changes appear immediately and the user can undo them). Returns a 6-digit code: tell the user to click "AI assistant" in the editor and enter it. After pairing, the editor appears in list_projects as "editor:N"; use that as project.',
+      {},
+      () => {
+        const { code, expiresAt } = bridge.createPairingCode();
+        return json({
+          code,
+          validForMinutes: Math.round((expiresAt - Date.now()) / 60000),
+          instructions: `Ask the user to click "AI assistant" in the Clipcourse editor and enter the code ${code}. Then call list_projects to get the editor's project id.`,
+        });
+      },
+      { readOnlyHint: true },
+    );
+  }
 
   // --- Resources ---------------------------------------------------------------------
 
