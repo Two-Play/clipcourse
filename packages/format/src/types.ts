@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * Clipcourse course format, version 4.
+ * Clipcourse course format, version 5.
  *
  * Version history:
  * - 1: courses, chapters, tracks, clips (image, text, shape, box, video,
@@ -14,6 +14,8 @@
  *      (jump to a chapter or marker, open a popup, show/hide a clip, open a
  *      link), clips that start hidden, popups, a glossary, and a completion
  *      rule with optional and goal chapters for branching. Additive.
+ * - 5: design themes: course.theme with color roles and font stacks; any
+ *      color may be a role reference such as "theme:accent". Additive.
  *
  * Conventions:
  * - All times and durations are integer milliseconds.
@@ -22,7 +24,9 @@
  * - Track order is the stacking order: `tracks[0]` is the back-most layer.
  */
 
-export const FORMAT_VERSION = 4 as const;
+import type { Theme } from './themes.js';
+
+export const FORMAT_VERSION = 5 as const;
 
 export interface Course {
   formatVersion: typeof FORMAT_VERSION;
@@ -41,6 +45,8 @@ export interface Course {
   assessment?: Assessment;
   /** When the course counts as completed. Default: all required chapters seen. */
   completion?: CompletionRule;
+  /** Colors and fonts; clips can use its roles ("theme:accent"). Default: the dark theme. */
+  theme?: Theme;
   /** Info windows opened by click actions. */
   popups?: Popup[];
   /** Terms explained to the learner; the player marks them in text clips. */

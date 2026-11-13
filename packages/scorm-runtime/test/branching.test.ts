@@ -21,7 +21,7 @@ const chapter = (
 });
 
 const branching = (mode: 'required' | 'goal'): Course => ({
-  formatVersion: 4,
+  formatVersion: 5,
   id: 'b',
   title: 'Branching',
   language: 'en',

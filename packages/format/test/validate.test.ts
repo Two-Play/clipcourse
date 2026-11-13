@@ -171,7 +171,7 @@ test('warns about overlapping clips on one track', () => {
 test('migrates version 1 documents to the current version', () => {
   const result = validateCourse(minimalCourse());
   expect(result.ok).toBe(true);
-  if (result.ok) expect(result.course.formatVersion).toBe(4);
+  if (result.ok) expect(result.course.formatVersion).toBe(5);
 });
 
 describe('questions (v3)', () => {
@@ -323,7 +323,7 @@ test('validates markers and the new clip types', () => {
 describe('interactions (v4)', () => {
   const interactive = () => {
     const doc = minimalCourse() as AnyObj;
-    doc.formatVersion = 4;
+    doc.formatVersion = 5;
     doc.completion = { mode: 'goal' };
     doc.popups = [{ id: 'info', title: 'More', text: 'Details', assetId: 'img' }];
     doc.glossary = [{ id: 'g1', term: 'SCORM', variants: ['SCORMs'], definition: 'A standard.' }];

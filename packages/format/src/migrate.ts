@@ -21,6 +21,8 @@ const migrations: Record<number, (doc: Json) => Json> = {
   // v4 only adds optional features (buttons, click actions, popups,
   // glossary, completion rule).
   3: (doc) => ({ ...doc, formatVersion: 4 }),
+  // v5 only adds optional features (theme, color roles).
+  4: (doc) => ({ ...doc, formatVersion: 5 }),
 };
 
 /** Returns the format version stored in a raw document. */

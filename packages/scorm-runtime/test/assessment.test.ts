@@ -35,7 +35,7 @@ const q2: Question = {
 };
 
 const course: Course = {
-  formatVersion: 4,
+  formatVersion: 5,
   id: 'c',
   title: 'C',
   language: 'en',
