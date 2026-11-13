@@ -15,9 +15,11 @@ import { probeMediaDuration } from '../session.js';
 
 export function Toolbar({
   onPreview,
+  onExport,
   onError,
 }: {
   onPreview: () => void;
+  onExport: () => void;
   onError: (message: string) => void;
 }) {
   const session = useSession();
@@ -146,9 +148,14 @@ export function Toolbar({
           {t('importMedia')}
         </button>
       </div>
-      <button type="button" className="primary" onClick={onPreview}>
-        ▶ {t('preview')}
-      </button>
+      <div className="toolbar-end">
+        <button type="button" className="primary" onClick={onPreview}>
+          ▶ {t('preview')}
+        </button>
+        <button type="button" onClick={onExport}>
+          {t('exportScorm')}
+        </button>
+      </div>
     </header>
   );
 }
