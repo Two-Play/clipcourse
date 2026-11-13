@@ -75,7 +75,15 @@ export function createClipView(
         applyBoxStyle(root, clip.fill, clip.stroke, clip.strokeWidth, clip.radius);
         if (clip.shape === 'ellipse') root.style.borderRadius = '50%';
       } else {
-        root.append(createLineSvg(doc, clip.frame, clip.stroke ?? clip.fill ?? '#000', clip.strokeWidth ?? 4, clip.shape === 'arrow'));
+        root.append(
+          createLineSvg(
+            doc,
+            clip.frame,
+            clip.stroke ?? clip.fill ?? '#000',
+            clip.strokeWidth ?? 4,
+            clip.shape === 'arrow',
+          ),
+        );
       }
       break;
     }
@@ -130,7 +138,11 @@ function applyTextStyle(container: HTMLElement, el: HTMLElement, style: TextStyl
   el.style.textAlign = s.align ?? 'left';
   if (s.lineHeight) el.style.lineHeight = String(s.lineHeight);
   container.style.justifyContent =
-    s.verticalAlign === 'middle' ? 'center' : s.verticalAlign === 'bottom' ? 'flex-end' : 'flex-start';
+    s.verticalAlign === 'middle'
+      ? 'center'
+      : s.verticalAlign === 'bottom'
+        ? 'flex-end'
+        : 'flex-start';
 }
 
 function createLineSvg(doc: Document, frame: Frame, color: string, width: number, arrow: boolean) {

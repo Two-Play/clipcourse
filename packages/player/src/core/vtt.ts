@@ -25,7 +25,10 @@ export function parseTimestamp(value: string): number {
 }
 
 export function parseVtt(source: string): Cue[] {
-  const lines = source.replace(/^﻿/, '').replace(/\r\n?/g, '\n').split('\n');
+  const lines = source
+    .replace(/^\uFEFF/, '')
+    .replace(/\r\n?/g, '\n')
+    .split('\n');
   const cues: Cue[] = [];
   let i = 0;
   while (i < lines.length) {

@@ -2,7 +2,7 @@
 import { expect, test } from 'vitest';
 import { cueTextAt, parseVtt } from '../src/core/vtt.js';
 
-const source = `﻿WEBVTT
+const source = `\uFEFFWEBVTT
 
 NOTE this is ignored
 

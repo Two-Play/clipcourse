@@ -4,7 +4,11 @@ import { decodeProgress, encodeProgress } from '../src/core/progress.js';
 
 describe('progress codec', () => {
   test('round-trips', () => {
-    const progress = { chapterIndex: 5, time: 123400, seen: [true, false, true, true, false, true, false] };
+    const progress = {
+      chapterIndex: 5,
+      time: 123400,
+      seen: [true, false, true, true, false, true, false],
+    };
     const encoded = encodeProgress(progress);
     expect(decodeProgress(encoded, 7)).toEqual(progress);
   });

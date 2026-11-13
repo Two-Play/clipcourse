@@ -34,7 +34,10 @@ export function encodeProgress(progress: Progress): string {
  * Returns null for anything that is not a valid progress string, so that a
  * corrupt or foreign suspend_data value never breaks the player.
  */
-export function decodeProgress(value: string | null | undefined, chapterCount: number): Progress | null {
+export function decodeProgress(
+  value: string | null | undefined,
+  chapterCount: number,
+): Progress | null {
   if (!value) return null;
   const parts = value.split(SEPARATOR);
   if (parts.length !== 4 || parts[0] !== VERSION) return null;
@@ -65,7 +68,7 @@ function decodeBits(hex: string, count: number): boolean[] {
   for (let i = 0; i < count; i++) {
     const digit = hex[Math.floor(i / 4)];
     const nibble = digit === undefined ? 0 : parseInt(digit, 16);
-    bits.push((nibble & (1 << i % 4)) !== 0);
+    bits.push((nibble & (1 << (i % 4))) !== 0);
   }
   return bits;
 }

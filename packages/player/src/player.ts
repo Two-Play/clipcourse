@@ -59,7 +59,11 @@ export interface Player {
 const SAVE_INTERVAL = 5000;
 const SEEK_STEP = 5000;
 
-export function createPlayer(container: HTMLElement, course: Course, options: PlayerOptions = {}): Player {
+export function createPlayer(
+  container: HTMLElement,
+  course: Course,
+  options: PlayerOptions = {},
+): Player {
   if (course.formatVersion !== 1) {
     throw new Error(`Unsupported course format version ${String(course.formatVersion)}`);
   }
@@ -83,10 +87,16 @@ export function createPlayer(container: HTMLElement, course: Course, options: Pl
   const resolveAsset: AssetResolver =
     options.resolveAsset ??
     ((asset: Asset) =>
-      /^https?:\/\//.test(asset.src) ? asset.src : new URL(asset.src, options.assetBaseUrl ?? doc.baseURI).href);
+      /^https?:\/\//.test(asset.src)
+        ? asset.src
+        : new URL(asset.src, options.assetBaseUrl ?? doc.baseURI).href);
 
   // --- DOM -----------------------------------------------------------------
-  const h = <K extends keyof HTMLElementTagNameMap>(tag: K, className: string, attrs: Record<string, string> = {}) => {
+  const h = <K extends keyof HTMLElementTagNameMap>(
+    tag: K,
+    className: string,
+    attrs: Record<string, string> = {},
+  ) => {
     const el = doc.createElement(tag);
     el.className = className;
     for (const [k, v] of Object.entries(attrs)) el.setAttribute(k, v);
@@ -98,7 +108,8 @@ export function createPlayer(container: HTMLElement, course: Course, options: Pl
     return b;
   };
 
-  const root = h('div', 'ccp-root', { lang: course.language });
+  // tabindex=-1: clicking anywhere in the player keeps keyboard shortcuts working.
+  const root = h('div', 'ccp-root', { lang: course.language, tabindex: '-1' });
   const viewport = h('div', 'ccp-viewport');
   const stage = new Stage(doc, course, {
     resolveAsset,
@@ -134,7 +145,12 @@ export function createPlayer(container: HTMLElement, course: Course, options: Pl
   const prevButton = button('ccp-btn ccp-prev', strings.previousChapter, ICONS.previous);
   const playButton = button('ccp-btn ccp-play', strings.play, ICONS.play);
   const nextButton = button('ccp-btn ccp-next', strings.nextChapter, ICONS.next);
-  const seek = h('input', 'ccp-seek', { type: 'range', min: '0', step: '100', 'aria-label': strings.seek });
+  const seek = h('input', 'ccp-seek', {
+    type: 'range',
+    min: '0',
+    step: '100',
+    'aria-label': strings.seek,
+  });
   const time = h('span', 'ccp-time', { 'aria-hidden': 'true' });
   const title = h('span', 'ccp-title');
   const ccButton = button('ccp-btn ccp-cc', strings.captionsOn, ICONS.captions);
@@ -171,7 +187,9 @@ export function createPlayer(container: HTMLElement, course: Course, options: Pl
 
     overlay.hidden = started || playing;
     const startLabel =
-      state.time > 0 || state.chapterIndex > 0 || state.seen.some(Boolean) ? strings.resume : strings.start;
+      state.time > 0 || state.chapterIndex > 0 || state.seen.some(Boolean)
+        ? strings.resume
+        : strings.start;
     if (startButton.dataset.label !== startLabel) {
       startButton.dataset.label = startLabel;
       startButton.innerHTML = ICONS.play; // static SVG
@@ -185,7 +203,11 @@ export function createPlayer(container: HTMLElement, course: Course, options: Pl
       playButton.dataset.icon = playIcon;
       playButton.innerHTML = ICONS[playIcon];
     }
-    const playLabel = playing ? strings.pause : state.status === 'ended' ? strings.replay : strings.play;
+    const playLabel = playing
+      ? strings.pause
+      : state.status === 'ended'
+        ? strings.replay
+        : strings.play;
     playButton.setAttribute('aria-label', playLabel);
     playButton.title = playLabel;
     prevButton.disabled = !controller.hasPrevious;
@@ -243,19 +265,20 @@ export function createPlayer(container: HTMLElement, course: Course, options: Pl
       }
       emit(event);
     }
-    if (state.status === 'waiting' && events.some((e) => e.type === 'chapterseen')) {
-      announce(strings.chapterComplete);
-      if (root.contains(doc.activeElement)) continueButton.focus();
-    }
-    if (state.status === 'ended' && events.some((e) => e.type === 'chapterseen')) {
-      announce(strings.courseComplete);
-    }
     if (state.status === 'playing') clock.start(onTick);
     else {
       clock.stop();
       saveProgress();
     }
     update();
+    const justSeen = events.some((e) => e.type === 'chapterseen');
+    if (state.status === 'waiting' && justSeen) {
+      announce(strings.chapterComplete);
+      // Keep keyboard users in flow: focus Continue (now visible) if focus
+      // was inside the player.
+      if (root.contains(doc.activeElement)) continueButton.focus();
+    }
+    if (state.status === 'ended' && justSeen) announce(strings.courseComplete);
     emit({ type: 'statechange', state });
   });
 

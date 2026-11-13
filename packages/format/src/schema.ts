@@ -10,7 +10,8 @@ import type { Course } from './types.js';
 
 export const ID_PATTERN = /^[A-Za-z_][A-Za-z0-9_.-]{0,127}$/;
 /** Hex, rgb(), rgba(), hsl(), hsla() or a named color. No url() or other CSS. */
-export const COLOR_PATTERN = /^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\([0-9.,%\s/+-]*\)|[a-zA-Z]{1,30})$/;
+export const COLOR_PATTERN =
+  /^(#[0-9a-fA-F]{3,8}|(rgb|rgba|hsl|hsla)\([0-9.,%\s/+-]*\)|[a-zA-Z]{1,30})$/;
 /** Font family list without anything that could escape the CSS value. */
 export const FONT_FAMILY_PATTERN = /^[A-Za-z0-9 ,'"_-]{1,200}$/;
 /**

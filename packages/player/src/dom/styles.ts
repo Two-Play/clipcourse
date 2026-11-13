@@ -5,6 +5,7 @@ export const PLAYER_CSS = `
   position:relative;display:flex;flex-direction:column;width:100%;height:100%;min-height:200px;
   background:#000;color:var(--ccp-fg);font:14px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   overflow:hidden;box-sizing:border-box}
+.ccp-root:focus{outline:none}
 .ccp-root *,.ccp-root *::before,.ccp-root *::after{box-sizing:border-box}
 .ccp-viewport{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
 .ccp-stage{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden}
@@ -25,6 +26,7 @@ export const PLAYER_CSS = `
   font-weight:600;color:#fff;background:var(--ccp-accent);border:0;border-radius:999px;cursor:pointer;
   box-shadow:0 4px 18px rgba(0,0,0,.4)}
 .ccp-big:hover{filter:brightness(1.1)}
+.ccp-big svg{width:24px;height:24px;fill:currentColor;flex:none}
 .ccp-continue{position:absolute;right:24px;bottom:24px;z-index:2}
 .ccp-spinner{position:absolute;top:16px;right:16px;width:28px;height:28px;border-radius:50%;
   border:3px solid rgba(255,255,255,.3);border-top-color:#fff;animation:ccp-spin 1s linear infinite;z-index:2}

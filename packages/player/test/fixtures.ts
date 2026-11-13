@@ -5,8 +5,19 @@ export function box(id: string, start: number, duration: number): Clip {
   return { id, type: 'box', start, duration, frame: { x: 0, y: 0, width: 10, height: 10 } };
 }
 
-export function chapter(id: string, duration: number, clips: Clip[], mode: 'wait' | 'auto' = 'wait'): Chapter {
-  return { id, title: `Chapter ${id}`, duration, transition: { mode }, tracks: [{ id: `${id}_t`, clips }] };
+export function chapter(
+  id: string,
+  duration: number,
+  clips: Clip[],
+  mode: 'wait' | 'auto' = 'wait',
+): Chapter {
+  return {
+    id,
+    title: `Chapter ${id}`,
+    duration,
+    transition: { mode },
+    tracks: [{ id: `${id}_t`, clips }],
+  };
 }
 
 export function course(chapters: Chapter[], extra: Partial<Course> = {}): Course {

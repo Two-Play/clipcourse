@@ -29,8 +29,23 @@ const textCourse = (): Course =>
         {
           id: 't',
           clips: [
-            { id: 'title', type: 'text', text: 'Hello <b>world</b>', role: 'heading', start: 0, duration: 1000, frame: { x: 0, y: 0, width: 100, height: 50 } },
-            { id: 'later', type: 'box', text: 'Later', start: 1000, duration: 1000, frame: { x: 0, y: 0, width: 100, height: 50 } },
+            {
+              id: 'title',
+              type: 'text',
+              text: 'Hello <b>world</b>',
+              role: 'heading',
+              start: 0,
+              duration: 1000,
+              frame: { x: 0, y: 0, width: 100, height: 50 },
+            },
+            {
+              id: 'later',
+              type: 'box',
+              text: 'Later',
+              start: 1000,
+              duration: 1000,
+              frame: { x: 0, y: 0, width: 100, height: 50 },
+            },
           ],
         },
       ],
@@ -112,7 +127,10 @@ describe('createPlayer', () => {
     expect(store.value).toBe(encodeProgress({ chapterIndex: 1, time: 500, seen: [true, false] }));
     player.destroy();
 
-    player = createPlayer(container, textCourse(), { clock: createManualClock(), progressStore: store });
+    player = createPlayer(container, textCourse(), {
+      clock: createManualClock(),
+      progressStore: store,
+    });
     expect(player.getState()).toMatchObject({ chapterIndex: 1, time: 500, seen: [true, false] });
     expect(q('.ccp-overlay button').textContent).toContain('Resume');
   });
@@ -128,7 +146,8 @@ describe('createPlayer', () => {
   test('keyboard: space toggles, arrows seek, n/p switch chapters', () => {
     player = createPlayer(container, textCourse(), { clock: createManualClock() });
     const root = q('.ccp-root');
-    const key = (k: string) => root.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
+    const key = (k: string) =>
+      root.dispatchEvent(new KeyboardEvent('keydown', { key: k, bubbles: true }));
     key(' ');
     expect(player.getState().status).toBe('playing');
     key('k');
