@@ -81,7 +81,7 @@ export const PLAYER_CSS = `
   background:var(--cct-surface,#1b2233);color:var(--cct-text,#fff);border-radius:22px;font-size:34px;line-height:1.3;text-align:left;
   box-shadow:0 12px 40px rgba(0,0,0,.45);overflow:auto}
 .ccp-q fieldset{border:0;margin:0;padding:0;min-width:0;display:flex;flex-direction:column;gap:16px}
-.ccp-q-prompt{font-size:42px;font-weight:700;padding:0;margin-bottom:6px}
+.ccp-q legend.ccp-q-prompt{font-size:42px;font-weight:700;padding:0;margin-bottom:6px;color:var(--cct-text,#fff)}
 .ccp-q-hint{margin:0;color:var(--cct-muted,#b8c0d0);font-size:28px}
 .ccp-q-choices{display:flex;flex-direction:column;gap:12px}
 .ccp-q-choice{display:flex;align-items:center;gap:18px;padding:14px 20px;border-radius:14px;background:color-mix(in srgb,var(--cct-text,#fff) 8%,transparent);
