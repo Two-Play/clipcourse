@@ -6,7 +6,7 @@ Clipcourse uses two licenses on purpose.
 | --------------------------------------------------------------------- | ------------------------ | ------------- |
 | Course format (types, schema, migrations)                             | `packages/format`        | MIT           |
 | Player runtime                                                        | `packages/player`        | MIT           |
-| SCORM runtime (from M4)                                               | `packages/scorm-runtime` | MIT           |
+| SCORM runtime                                                         | `packages/scorm-runtime` | MIT           |
 | Player demo / test harness                                            | `apps/player-demo`       | MIT           |
 | Example courses and their media                                       | `examples`               | CC0-1.0       |
 | Everything else (editor, editor core, exporter, desktop app, scripts) | all other paths          | AGPL-3.0-only |

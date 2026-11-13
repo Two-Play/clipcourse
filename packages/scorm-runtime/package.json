@@ -1,0 +1,22 @@
+{
+  "name": "@clipcourse/scorm-runtime",
+  "version": "0.1.0",
+  "description": "Clipcourse SCORM runtime: connects the player to an LMS (SCORM 1.2 and 2004). Ships inside every exported course.",
+  "author": "Philippe",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./testing": "./src/testing.ts",
+    "./dist/clipcourse-runtime.iife.js": "./dist/clipcourse-runtime.iife.js"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "vite build && node ../../scripts/check-size.mjs dist/clipcourse-runtime.iife.js 20000"
+  },
+  "dependencies": {
+    "@clipcourse/format": "workspace:*",
+    "@clipcourse/player": "workspace:*"
+  }
+}

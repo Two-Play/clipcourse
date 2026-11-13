@@ -54,6 +54,11 @@ export class Controller {
       this.seen = course.chapters.map((_, i) => progress.seen[i] === true);
       this.chapterIndex = Math.min(Math.max(progress.chapterIndex, 0), course.chapters.length - 1);
       this.time = clampTime(this.chapter, progress.time);
+      // Restored at the end of a finished chapter: continue where the learner
+      // left off (waiting for "Continue", or done) instead of replaying it.
+      if (this.time >= this.chapter.duration && this.seen[this.chapterIndex]) {
+        this.status = this.hasNext ? 'waiting' : 'ended';
+      }
     }
   }
 

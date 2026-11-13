@@ -19,7 +19,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'pnpm exec vite --port 4318 --strictPort',
+    command:
+      'pnpm --filter @clipcourse/scorm-runtime build && pnpm exec vite --port 4318 --strictPort',
     url: 'http://localhost:4318',
     reuseExistingServer: !process.env.CI,
   },

@@ -793,3 +793,91 @@ dialog.preview::backdrop {
     order: -1;
   }
 }
+
+.toolbar-end {
+  display: flex;
+  gap: 6px;
+  margin-left: auto;
+}
+dialog.export {
+  width: min(560px, 94vw);
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--fg);
+  display: grid;
+  gap: 12px;
+}
+dialog.export:not([open]) {
+  display: none;
+}
+dialog.export::backdrop {
+  background: rgba(0, 0, 0, 0.6);
+}
+dialog.export h2 {
+  margin: 0;
+  font-size: 16px;
+}
+label.radio {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  cursor: pointer;
+}
+.export-done {
+  margin: 0;
+  color: #06d6a0;
+}
+.dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.preview-mode {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  color: var(--muted);
+}
+.preview-mode select {
+  width: auto;
+}
+.preview-bar {
+  gap: 8px;
+}
+.preview-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.preview-body .preview-player {
+  flex: 1;
+  min-width: 0;
+}
+.lms-panel {
+  width: 280px;
+  padding: 10px;
+  overflow: auto;
+  background: var(--panel);
+  border-left: 1px solid var(--line);
+  font-size: 12px;
+}
+.lms-panel h3 {
+  margin: 0 0 8px;
+  font-size: 13px;
+}
+.lms-panel dl {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+.lms-panel dt {
+  color: var(--muted);
+}
+.lms-panel dd {
+  margin: 0;
+  font-family: ui-monospace, monospace;
+  word-break: break-all;
+}

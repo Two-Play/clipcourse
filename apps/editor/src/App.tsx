@@ -2,6 +2,7 @@
 import { useState } from 'react';
 import { AssetPanel } from './components/AssetPanel.js';
 import { ChapterPanel } from './components/ChapterPanel.js';
+import { ExportDialog } from './components/ExportDialog.js';
 import { Inspector } from './components/Inspector.js';
 import { PreviewDialog } from './components/PreviewDialog.js';
 import { StageView } from './components/StageView.js';
@@ -14,9 +15,10 @@ import type { EditorSession } from './session.js';
 
 export function App({ session, notice }: { session: EditorSession; notice?: string }) {
   const [preview, setPreview] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [message, setMessage] = useState<string | null>(notice ?? null);
   usePlayback(session);
-  useShortcuts(session, !preview);
+  useShortcuts(session, !preview && !exporting);
   useAutosave(session);
 
   return (
@@ -26,6 +28,10 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
           onPreview={() => {
             session.store.getState().setPlaying(false);
             setPreview(true);
+          }}
+          onExport={() => {
+            session.store.getState().setPlaying(false);
+            setExporting(true);
           }}
           onError={setMessage}
         />
@@ -55,6 +61,7 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
         <Timeline />
         <footer className="statusbar">{t('shortcuts')}</footer>
         {preview && <PreviewDialog onClose={() => setPreview(false)} />}
+        {exporting && <ExportDialog onClose={() => setExporting(false)} />}
       </div>
     </SessionProvider>
   );

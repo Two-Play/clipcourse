@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Clipcourse LMS test harness</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        background: #222;
+        color: #ddd;
+        font:
+          13px system-ui,
+          sans-serif;
+      }
+      body {
+        display: flex;
+        flex-direction: column;
+      }
+      header {
+        padding: 6px 10px;
+      }
+      iframe {
+        flex: 1;
+        border: 0;
+        background: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <header>LMS test harness (development only) · <span id="info"></span></header>
+    <iframe id="sco" title="Course"></iframe>
+    <script type="module" src="/src/lms-harness.ts"></script>
+  </body>
+</html>
