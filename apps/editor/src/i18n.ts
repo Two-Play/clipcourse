@@ -381,7 +381,7 @@ const en = {
   playPause: 'Play / pause',
   dismiss: 'Dismiss',
   shortcuts:
-    'Space: play/pause · Delete: remove · Ctrl+Z / Ctrl+Shift+Z: undo/redo · S: split · Ctrl+D: duplicate · ←/→: move playhead',
+    'Space: play/pause · Delete: remove · Ctrl+Z / Ctrl+Shift+Z: undo/redo · Ctrl+C/X/V: copy/cut/paste · S: split · Ctrl+D: duplicate · ←/→: move playhead · Right-click: menu',
 };
 
 export type MessageKey = keyof typeof en;

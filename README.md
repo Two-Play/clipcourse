@@ -106,6 +106,15 @@ restored on the next start.
 - **Completed when** (course properties): all chapters except optional ones
   are seen, or a goal chapter is reached. Mark chapters as optional or goal
   in the chapter properties.
+- **Right-click** (or Shift+F10 / the menu key) on clips, the stage, tracks,
+  chapters and media for a context menu. Clips can be cut, copied and pasted
+  (Ctrl+X/C/V), also into other chapters; click actions between copied clips
+  point to the copies.
+- Drag the edges between the panels (sidebar, properties, timeline) to resize
+  them, or focus an edge and use the arrow keys; double-click resets it.
+  _View → Reset layout_ restores everything.
+- **Stage format** (course properties or Design tab): 16:9, 4:3, 1:1, 9:16 or a
+  custom size; all clips are scaled with it.
 - **New** opens a gallery: a blank course or a course template (compliance
   training, onboarding, micro lesson), with a theme.
 - **Design** tab: switch the theme (dark, light, corporate, nature, warm, high

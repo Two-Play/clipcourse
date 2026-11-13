@@ -122,17 +122,15 @@ test('a dangling target is dropped when the original target is gone', () => {
   t.run({ op: 'delete_clips', clipIds: [t.toOther] });
   t.run({ op: 'delete_chapter', chapterId: t.other });
   let pasted: string[] = [];
-  t.store
-    .getState()
-    .execute(
-      'Paste',
-      pasteClips(data, {
-        chapterId: t.intro,
-        time: 0,
-        newId: t.newId,
-        onPasted: (ids) => (pasted = ids),
-      }),
-    );
+  t.store.getState().execute(
+    'Paste',
+    pasteClips(data, {
+      chapterId: t.intro,
+      time: 0,
+      newId: t.newId,
+      onPasted: (ids) => (pasted = ids),
+    }),
+  );
   expect((findClip(t.course(), pasted[0]!)!.clip as ButtonClip).action).toEqual({
     type: 'goToChapter',
     chapterId: t.intro,
