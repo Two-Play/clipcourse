@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
 import { strFromU8, unzipSync } from 'fflate';
-import { openFresh } from './helpers.js';
+import { openFresh, press, ribbon } from './helpers.js';
 
 const logo = fileURLToPath(new URL('../../../examples/welcome/assets/logo.svg', import.meta.url));
 
@@ -27,12 +27,13 @@ async function exportCourse(page: Page, version: '1.2' | '2004') {
   await page.keyboard.press('Escape');
   await page.getByLabel('Duration (s)').fill('2');
   await page.getByLabel('Duration (s)').press('Enter');
-  await page.getByText('＋ Add chapter').click();
+  await page.getByText('Add chapter', { exact: true }).click();
   await page.getByRole('menuitem', { name: 'Blank chapter' }).click();
   await page.getByLabel('Duration (s)').fill('1');
   await page.getByLabel('Duration (s)').press('Enter');
 
-  await page.getByRole('button', { name: 'Export SCORM…' }).click();
+  await ribbon(page, 'File');
+  await press(page, 'Export SCORM');
   const dialog = page.getByRole('dialog', { name: 'Export for an LMS (SCORM)' });
   await dialog.getByLabel(version === '1.2' ? /SCORM 1\.2/ : /SCORM 2004/).check();
   const download = page.waitForEvent('download');
@@ -115,8 +116,8 @@ for (const version of ['1.2', '2004'] as const) {
 
 test('preview simulates an LMS and shows what it stores', async ({ page }) => {
   await openFresh(page);
-  await page.getByRole('button', { name: '＋ Text' }).click();
-  await page.getByRole('button', { name: '▶ Preview' }).click();
+  await press(page, 'Text');
+  await press(page, 'Preview');
   const dialog = page.getByRole('dialog', { name: 'Preview' });
   await dialog.getByLabel('LMS simulation').selectOption('2004');
   const panel = dialog.getByRole('complementary', { name: 'LMS simulation' });

@@ -5,7 +5,9 @@ import { expect, type Page } from '@playwright/test';
 /** Starts the editor with an empty course and no stored draft. */
 export async function openFresh(page: Page) {
   await page.goto('/?fresh');
-  await expect(page.getByRole('button', { name: '＋ Text' })).toBeVisible();
+  await expect(
+    page.getByRole('tabpanel').getByRole('button', { name: 'Text', exact: true }),
+  ).toBeVisible();
 }
 
 export function editorState(page: Page) {
@@ -44,4 +46,18 @@ export async function drag(
   await page.mouse.down();
   await page.mouse.move(to.x, to.y, { steps });
   await page.mouse.up();
+}
+
+/** Switches the ribbon to a tab (File, Home, Insert, Chapter, View). */
+export async function ribbon(page: Page, tab: string) {
+  await page.getByRole('tab', { name: tab, exact: true }).click();
+}
+
+/** Clicks a button in the ribbon or the quick access bar by its exact name. */
+export async function press(page: Page, name: string) {
+  await page
+    .locator('.ribbon, .quick-access')
+    .getByRole('button', { name, exact: true })
+    .first()
+    .click();
 }

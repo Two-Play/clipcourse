@@ -15,12 +15,14 @@ import {
   duplicateClip,
   findClip,
   fits,
+  moveClip,
+  updateClip,
   removeClips,
   selectChapter,
   splitClip,
   DEFAULT_CLIP_DURATION,
 } from '@clipcourse/editor-core';
-import type { ClipType } from '@clipcourse/format';
+import type { AnimationType, ClipType, TextStyle } from '@clipcourse/format';
 import type { EditorSession } from './session.js';
 
 /**
@@ -188,4 +190,103 @@ export async function saveChapterAsTemplate(
   const template = templateFromChapter(session.project, chapterId, name, session.newId('template'));
   await session.storage.saveTemplate(template);
   return template;
+}
+
+/**
+ * Brings a clip in front of (or behind) all other clips of its chapter:
+ * it moves to the front-most (back-most) track with room at its time, or to
+ * a new track on top (at the bottom).
+ */
+export function arrangeClip(session: EditorSession, clipId: string, where: 'front' | 'back') {
+  const { store } = session;
+  const course = store.getState().course;
+  const location = findClip(course, clipId);
+  if (!location || location.scope.kind !== 'chapter') return;
+  const chapter = course.chapters[location.chapterIndex]!;
+  const { clip } = location;
+  const ordered = where === 'front' ? [...chapter.tracks].reverse() : chapter.tracks;
+  const ownIndex = chapter.tracks.indexOf(location.track);
+  const alreadyThere = where === 'front' ? ownIndex === chapter.tracks.length - 1 : ownIndex === 0;
+  if (alreadyThere) return;
+  const others = ordered.filter((t) => t.id !== location.track.id);
+  const target = others[0] && fits(others[0], clip.start, clip.duration) ? others[0] : null;
+  const trackId = target?.id ?? session.newId('track');
+  store.getState().execute(
+    where === 'front' ? 'Bring to front' : 'Send to back',
+    (draft) => {
+      if (!target)
+        addTrack(
+          chapter.id,
+          { id: trackId, name: 'Track' },
+          where === 'front' ? undefined : 0,
+        )(draft);
+      moveClip(clipId, clip.start, trackId)(draft);
+    },
+    { select: [clipId] },
+  );
+}
+
+/** Centers a visual clip on the stage, horizontally and/or vertically. */
+export function centerClip(
+  session: EditorSession,
+  clipId: string,
+  axis: 'horizontal' | 'vertical',
+) {
+  const { store } = session;
+  const { stage } = store.getState().course;
+  store.getState().execute('Center', (draft) =>
+    updateClip(clipId, (clip) => {
+      if (clip.type === 'audio') return;
+      const frame = { ...clip.frame };
+      if (axis === 'horizontal') frame.x = Math.round((stage.width - frame.width) / 2);
+      else frame.y = Math.round((stage.height - frame.height) / 2);
+      clip.frame = frame;
+    })(draft),
+  );
+}
+
+export function setClipAnimation(
+  session: EditorSession,
+  clipId: string,
+  phase: 'in' | 'out',
+  type: AnimationType | null,
+) {
+  session.store.getState().execute('Animation', (draft) =>
+    updateClip(clipId, (clip) => {
+      if (clip.type === 'audio') return;
+      const animations = { ...clip.animations };
+      if (type) {
+        const previous = animations[phase];
+        animations[phase] = {
+          ...previous,
+          type,
+          duration: previous?.duration ?? 500,
+          ...(type === 'slide' && !previous?.direction
+            ? { direction: phase === 'in' ? 'left' : 'right' }
+            : {}),
+        };
+      } else {
+        delete animations[phase];
+      }
+      if (animations.in || animations.out) clip.animations = animations;
+      else delete clip.animations;
+    })(draft),
+  );
+}
+
+/** Applies a change to the text style of text and box clips. */
+export function editTextStyle(
+  session: EditorSession,
+  clipId: string,
+  label: string,
+  change: (style: TextStyle) => TextStyle,
+) {
+  session.store.getState().execute(
+    label,
+    (draft) =>
+      updateClip(clipId, (clip) => {
+        if (clip.type === 'text' || clip.type === 'box') clip.style = change({ ...clip.style });
+      })(draft),
+    { mergeKey: `${clipId}:${label}` },
+  );
 }
