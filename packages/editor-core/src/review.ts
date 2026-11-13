@@ -177,6 +177,41 @@ export function reviewCourse(course: Course): ReviewIssue[] {
     }
   };
 
+  const reviewClickable = (clip: VisualClip, where: { chapterId: string; clipId: string }) => {
+    const label =
+      clip.actionLabel ??
+      (clip.type === 'button' || clip.type === 'text'
+        ? clip.text
+        : clip.type === 'box'
+          ? clip.text
+          : clip.type === 'image'
+            ? (clip.alt ?? course.assets[clip.assetId]?.alt)
+            : clip.type === 'highlight'
+              ? clip.label
+              : undefined);
+    if (!label?.trim()) {
+      issues.push({
+        severity: 'warning',
+        code: 'clickable-without-name',
+        ...where,
+        message: `Clickable ${clip.type} ${clip.id} has no name for screen readers.`,
+        fix:
+          clip.type === 'button'
+            ? 'Give the button a text.'
+            : 'Set actionLabel to what the click does, e.g. "Show the answer".',
+      });
+    }
+    if (clip.action?.type === 'openUrl') {
+      issues.push({
+        severity: 'info',
+        code: 'external-link',
+        ...where,
+        message: `Clip ${clip.id} opens ${clip.action.url} in a new window.`,
+        fix: 'Some LMS block links to other sites; test the link in your LMS.',
+      });
+    }
+  };
+
   const minFont = (course.stage.width / 1920) * 28;
   const largeFont = (course.stage.width / 1920) * 48;
   const usedAssets = new Set<string>();
@@ -210,6 +245,7 @@ export function reviewCourse(course: Course): ReviewIssue[] {
           usedAssets.add(clip.captionsAssetId);
         const where = { chapterId: chapter.id, clipId: clip.id };
         if (clip.type === 'question') reviewQuestion(clip.question, where);
+        if (clip.type !== 'audio' && clip.action) reviewClickable(clip, where);
 
         if (clip.type === 'image') {
           const alt = clip.alt ?? course.assets[clip.assetId]?.alt;
@@ -285,6 +321,29 @@ export function reviewCourse(course: Course): ReviewIssue[] {
   for (const chapter of course.chapters) {
     for (const question of chapter.quiz?.questions ?? []) {
       reviewQuestion(question, { chapterId: chapter.id });
+    }
+  }
+
+  for (const popup of course.popups ?? []) {
+    if (popup.assetId) usedAssets.add(popup.assetId);
+  }
+  if (course.glossary?.length) {
+    const texts = course.chapters
+      .flatMap((c) => c.tracks)
+      .concat(course.courseLayer?.background ?? [], course.courseLayer?.foreground ?? [])
+      .flatMap((t) => t.clips)
+      .map((c) => (c.type === 'text' || c.type === 'box' ? (c.text ?? '') : ''))
+      .join('\n')
+      .toLocaleLowerCase();
+    for (const entry of course.glossary) {
+      const forms = [entry.term, ...(entry.variants ?? [])].map((f) => f.toLocaleLowerCase());
+      if (!forms.some((f) => texts.includes(f))) {
+        issues.push({
+          severity: 'info',
+          code: 'unused-glossary-term',
+          message: `Glossary term "${entry.term}" does not appear in any text clip; it is only listed in the table of contents.`,
+        });
+      }
     }
   }
 

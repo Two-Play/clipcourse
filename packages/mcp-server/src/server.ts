@@ -184,6 +184,34 @@ const questionPatch = z
     'Fields to change (same names as in the question; null removes an optional field). Lists such as choices replace the whole list. To change the kind, give a complete question.',
   );
 
+// --- Click actions --------------------------------------------------------------------
+
+const clipAction = z
+  .discriminatedUnion('type', [
+    z.object({ type: z.literal('goToChapter'), chapterId: id('chapter') }).strict(),
+    z
+      .object({ type: z.literal('goToMarker'), chapterId: id('chapter'), markerId: id('marker') })
+      .strict(),
+    z.object({ type: z.literal('openPopup'), popupId: id('popup') }).strict(),
+    z
+      .object({
+        type: z.literal('setClipVisibility'),
+        clipId: id('clip'),
+        visible: z.enum(['show', 'hide', 'toggle']),
+        pause: z.boolean().optional().describe('pause playback when clicked'),
+      })
+      .strict(),
+    z
+      .object({
+        type: z.literal('openUrl'),
+        url: z.string().max(2048).describe('http(s):// or mailto: only; opens in a new window'),
+      })
+      .strict(),
+  ])
+  .describe(
+    'What a click does: jump to a chapter or marker (starts playing there), open a popup, show/hide/toggle a clip (e.g. reveal an answer), or open a link',
+  );
+
 const clipProps = z
   .object({
     text: z.string().describe('text and box clips; plain text, line breaks kept'),
@@ -248,6 +276,20 @@ const clipProps = z
       .min(0)
       .nullable()
       .describe('video/audio: ms skipped at the start of the media'),
+    action: clipAction
+      .nullable()
+      .describe('click action (buttons always need one; null removes it from other clips)'),
+    actionLabel: z
+      .string()
+      .max(500)
+      .nullable()
+      .describe(
+        'name of a clickable clip for screen readers, if its text/alt does not say what the click does',
+      ),
+    startsHidden: z
+      .boolean()
+      .nullable()
+      .describe('not shown until a setClipVisibility action shows it'),
     start: z.number().int().min(0).describe('update_clip only: new start in ms (moves the clip)'),
     duration: z.number().int().positive().describe('update_clip only: new duration in ms'),
     question: z
@@ -269,6 +311,7 @@ const clipType = z.enum([
   'highlight',
   'progress',
   'question',
+  'button',
 ]);
 
 // --- Helpers -------------------------------------------------------------------------
@@ -294,7 +337,7 @@ function defined<T extends object>(value: T): Defined<T> {
 
 export const SERVER_INSTRUCTIONS = `Clipcourse builds e-learning courses on a timeline and exports them as SCORM packages.
 A course has chapters; each chapter has its own timeline (starting at 0 ms) with tracks and clips.
-Typical workflow: list_projects or create_project → get_course (outline) → add_chapter / add_clip / update_clip → questions (add_clip type question, set_quiz, add_quiz_question, set_assessment) → review_course → export_scorm.
+Typical workflow: list_projects or create_project → get_course (outline) → add_chapter / add_clip / update_clip → questions (add_clip type question, set_quiz, add_quiz_question, set_assessment) → interactions (add_clip type button, props.action, add_popup, add_glossary_entry, set_completion) → review_course → export_scorm.
 All times are milliseconds, all positions are stage pixels (default stage 1920×1080). Clips on one track never overlap; the server moves them to the nearest free spot.
 Every change is saved immediately and can be undone with undo. Read clipcourse://format/guide for the course format.`;
 
@@ -489,6 +532,11 @@ export function createServer(options: ServerOptions): McpServer {
       fitToContent: z.boolean().optional().describe('set the length to the end of the last clip'),
       transition: z.enum(['wait', 'auto']).optional(),
       background: color.nullable().optional().describe('null: use the stage background'),
+      optional: z
+        .boolean()
+        .optional()
+        .describe('not needed for completion (side branches, extras); rule "required"'),
+      goal: z.boolean().optional().describe('reaching its end completes the course; rule "goal"'),
     },
     (a) =>
       a.fitToContent
@@ -501,6 +549,8 @@ export function createServer(options: ServerOptions): McpServer {
               duration: a.duration,
               transition: a.transition,
               background: a.background,
+              optional: a.optional,
+              goal: a.goal,
             }),
           },
   );
@@ -645,6 +695,97 @@ export function createServer(options: ServerOptions): McpServer {
     true,
   );
 
+  // --- Branching, popups, glossary -----------------------------------------------------
+
+  op(
+    'set_completion',
+    'Sets when the course counts as completed: "required" (default) = all chapters seen except those marked optional; "goal" = a chapter marked as goal has been reached (for branching courses with several endings).',
+    { mode: z.enum(['required', 'goal']) },
+    (a) => ({ op: 'set_completion', mode: a.mode }),
+  );
+
+  op(
+    'add_popup',
+    'Adds a popup (info window with title, text and an optional image) that click actions can open (action type openPopup).',
+    {
+      title: z.string().min(1).max(500),
+      text: z.string().max(10000).describe('plain text, line breaks kept'),
+      assetId: z.string().optional().describe('image asset shown above the text'),
+      alt: z.string().max(1000).optional().describe('alt text of the image'),
+    },
+    (a) => ({
+      op: 'add_popup',
+      title: a.title,
+      text: a.text,
+      ...defined({ assetId: a.assetId, alt: a.alt }),
+    }),
+  );
+  op(
+    'update_popup',
+    'Changes a popup. null removes the image or alt text.',
+    {
+      popupId: id('popup'),
+      title: z.string().min(1).max(500).optional(),
+      text: z.string().max(10000).optional(),
+      assetId: z.string().nullable().optional(),
+      alt: z.string().max(1000).nullable().optional(),
+    },
+    (a) => ({
+      op: 'update_popup',
+      popupId: a.popupId,
+      ...defined({ title: a.title, text: a.text, assetId: a.assetId, alt: a.alt }),
+    }),
+  );
+  op(
+    'delete_popup',
+    'Deletes a popup (refused while a click action opens it).',
+    { popupId: id('popup') },
+    (a) => ({ op: 'delete_popup', popupId: a.popupId }),
+    true,
+  );
+
+  op(
+    'add_glossary_entry',
+    'Adds a glossary term. The player marks its first occurrence in each text clip (whole words, any case); learners click it for the explanation. The glossary is also listed in the table of contents.',
+    {
+      term: z.string().min(1).max(200),
+      definition: z.string().min(1).max(5000).describe('short, plain explanation'),
+      variants: z
+        .array(z.string().min(1).max(200))
+        .max(20)
+        .optional()
+        .describe('other forms, e.g. plural'),
+    },
+    (a) => ({
+      op: 'add_glossary_entry',
+      term: a.term,
+      definition: a.definition,
+      ...defined({ variants: a.variants }),
+    }),
+  );
+  op(
+    'update_glossary_entry',
+    'Changes a glossary term. variants: null removes them.',
+    {
+      entryId: id('glossary entry'),
+      term: z.string().min(1).max(200).optional(),
+      definition: z.string().min(1).max(5000).optional(),
+      variants: z.array(z.string().min(1).max(200)).max(20).nullable().optional(),
+    },
+    (a) => ({
+      op: 'update_glossary_entry',
+      entryId: a.entryId,
+      ...defined({ term: a.term, definition: a.definition, variants: a.variants }),
+    }),
+  );
+  op(
+    'delete_glossary_entry',
+    'Deletes a glossary term.',
+    { entryId: id('glossary entry') },
+    (a) => ({ op: 'delete_glossary_entry', entryId: a.entryId }),
+    true,
+  );
+
   // --- Tracks ------------------------------------------------------------------------
 
   op(
@@ -699,7 +840,7 @@ export function createServer(options: ServerOptions): McpServer {
   op(
     'add_clip',
     [
-      'Adds a clip. Types: text, box (filled box with optional text), shape (rect/ellipse/line/arrow), image/video/audio (need assetId from import_media), highlight (marker/frame/arrow/spotlight), progress (course progress bar), question (playback stops at its start until the learner answers; give props.question, otherwise a sample single-choice question is used).',
+      'Adds a clip. Types: text, box (filled box with optional text), shape (rect/ellipse/line/arrow), image/video/audio (need assetId from import_media), highlight (marker/frame/arrow/spotlight), progress (course progress bar), question (playback stops at its start until the learner answers; give props.question, otherwise a sample single-choice question is used), button (props.text and props.action; default action: go to the next chapter). Any other visual clip can also get props.action to become clickable.',
       'Without trackId the clip goes to the front-most track of the chapter that has room at "start" (a new track is created if needed).',
       'Defaults are sensible (centered frame, readable text); override with props.',
     ].join(' '),
