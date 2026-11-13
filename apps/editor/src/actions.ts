@@ -2,6 +2,7 @@
 /** Editor operations shared by toolbar, timeline, shortcuts and drops. */
 import {
   addChapter,
+  addPopup,
   addClip,
   addCourseTrack,
   instantiateTemplate,
@@ -182,6 +183,7 @@ export function insertTemplate(session: EditorSession, template: ChapterTemplate
   session.addFiles(result.files);
   store.getState().execute(`Add chapter “${result.chapter.title}”`, (draft) => {
     Object.assign(draft.assets, result.assets);
+    for (const popup of result.popups) addPopup(popup)(draft);
     addChapter(result.chapter, index)(draft);
   });
   store.getState().setChapter(result.chapter.id);

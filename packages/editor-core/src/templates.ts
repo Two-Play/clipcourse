@@ -3,11 +3,12 @@
  * Chapter templates: a chapter plus the media it uses, so it can be reused
  * in any project. Templates are stored by the platform (see ProjectStorage).
  */
-import type { Asset, Chapter, Course } from '@clipcourse/format';
+import type { Asset, Chapter, Course, Popup, Question } from '@clipcourse/format';
 import { cloneChapter } from './commands.js';
 import type { IdFactory } from './document.js';
 import { createClip } from './document.js';
 import { assetIdFromName, ASSET_DIR, sanitizeFileName, type Project } from './project.js';
+import { dropForeignActions, remapActions } from './references.js';
 
 export interface ChapterTemplate {
   id: string;
@@ -20,6 +21,28 @@ export interface ChapterTemplate {
   assets: Record<string, Asset>;
   /** Media files by path (as in `assets[*].src`). */
   files: [string, Uint8Array][];
+  /** Popups opened by the chapter's click actions. */
+  popups?: Popup[];
+}
+
+/** The chapter's questions (clips and quiz). */
+function questionsOf(chapter: Chapter): Question[] {
+  return [
+    ...chapter.tracks.flatMap((t) =>
+      t.clips.flatMap((c) => (c.type === 'question' ? [c.question] : [])),
+    ),
+    ...(chapter.quiz?.questions ?? []),
+  ];
+}
+
+function popupRefs(chapter: Chapter): Set<string> {
+  const ids = new Set<string>();
+  for (const track of chapter.tracks) {
+    for (const clip of track.clips) {
+      if (clip.type !== 'audio' && clip.action?.type === 'openPopup') ids.add(clip.action.popupId);
+    }
+  }
+  return ids;
 }
 
 function assetRefs(chapter: Chapter): Set<string> {
@@ -31,6 +54,9 @@ function assetRefs(chapter: Chapter): Set<string> {
       if ((clip.type === 'video' || clip.type === 'audio') && clip.captionsAssetId)
         ids.add(clip.captionsAssetId);
     }
+  }
+  for (const question of questionsOf(chapter)) {
+    if (question.kind === 'hotspot') ids.add(question.assetId);
   }
   return ids;
 }
@@ -46,14 +72,26 @@ export function templateFromChapter(
   if (!chapter) throw new Error(`Unknown chapter "${chapterId}"`);
   const assets: Record<string, Asset> = {};
   const files: [string, Uint8Array][] = [];
-  for (const assetId of assetRefs(chapter)) {
+  const used = popupRefs(chapter);
+  const popups = (project.course.popups ?? []).filter((p) => used.has(p.id));
+  const refs = assetRefs(chapter);
+  for (const popup of popups) if (popup.assetId) refs.add(popup.assetId);
+  for (const assetId of refs) {
     const asset = project.course.assets[assetId];
     if (!asset) continue;
     assets[assetId] = structuredClone(asset);
     const data = project.files.get(asset.src);
     if (data) files.push([asset.src, data]);
   }
-  return { id, name, createdAt: Date.now(), chapter: structuredClone(chapter), assets, files };
+  return {
+    id,
+    name,
+    createdAt: Date.now(),
+    chapter: structuredClone(chapter),
+    assets,
+    files,
+    ...(popups.length ? { popups: structuredClone(popups) } : {}),
+  };
 }
 
 export interface InstantiatedTemplate {
@@ -62,6 +100,8 @@ export interface InstantiatedTemplate {
   assets: Record<string, Asset>;
   /** Files to add to the project. */
   files: Map<string, Uint8Array>;
+  /** Popups to add to the course (new ids). */
+  popups: Popup[];
 }
 
 /**
@@ -122,7 +162,31 @@ export function instantiateTemplate(
       }
     }
   }
-  return { chapter, assets, files };
+  for (const question of questionsOf(chapter)) {
+    if (question.kind === 'hotspot')
+      question.assetId = idMap.get(question.assetId) ?? question.assetId;
+  }
+
+  // Popups come along with new ids; other targets outside the chapter are dropped.
+  const popupIds = new Map<string, string>();
+  const popups = (template.popups ?? []).map((popup) => {
+    const id = newId('popup');
+    popupIds.set(popup.id, id);
+    const copy: Popup = { ...structuredClone(popup), id };
+    if (copy.assetId) copy.assetId = idMap.get(copy.assetId) ?? copy.assetId;
+    return copy;
+  });
+  remapActions(chapter, {
+    chapters: new Map(),
+    markers: new Map(),
+    clips: new Map(),
+    popups: popupIds,
+  });
+  dropForeignActions(chapter, {
+    ...project.course,
+    popups: [...(project.course.popups ?? []), ...popups],
+  });
+  return { chapter, assets, files, popups };
 }
 
 function sameBytes(a: Uint8Array | undefined, b: Uint8Array): boolean {
