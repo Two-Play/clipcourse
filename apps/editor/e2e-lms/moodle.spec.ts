@@ -7,7 +7,7 @@
  *     pnpm --filter @clipcourse/editor test:lms
  */
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
-import { answerQuiz, buildPackage } from './package.js';
+import { answerQuiz, buildPackage, revealHint } from './package.js';
 
 const url = process.env.MOODLE_URL;
 const user = process.env.MOODLE_USER ?? 'admin';
@@ -94,16 +94,19 @@ for (const version of ['1.2', '2004'] as const) {
       )
       .toBeGreaterThan(0);
     await expect(course.getByRole('button', { name: 'Continue' })).toBeVisible({ timeout: 10000 });
+    await revealHint(course);
     await page.goto(viewUrl);
 
     // Second session: resumes at the end of chapter one.
     course = await enter(page);
     await expect(course.getByRole('button', { name: 'Resume' })).toBeVisible();
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 1 of 3: First chapter');
+    // What the learner revealed comes back with the bookmark.
+    await expect(course.getByText('Hint revealed')).toBeVisible();
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 1 of 4: First chapter');
     await course.getByRole('button', { name: 'Resume' }).click();
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 2 of 3: Second chapter');
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 2 of 4: Second chapter');
     await course.getByRole('button', { name: 'Continue' }).click({ timeout: 10000 });
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 3 of 3: Final quiz');
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 3 of 4: Final quiz');
     await answerQuiz(course);
     await page.goto(viewUrl);
 

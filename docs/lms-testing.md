@@ -1,8 +1,9 @@
 # Testing with a real LMS
 
 Verified so far: **Moodle 5.3.1** and **ILIAS 10.12**, SCORM 1.2 and 2004
-each: launch, media, resume, a quiz chapter (score, passed/failed,
-interactions) and completion.
+each: launch, media, resume (including a clip revealed by a button), a quiz
+chapter (score, passed/failed, interactions) and completion with an
+unvisited optional chapter.
 
 ## Moodle (automated)
 
