@@ -85,6 +85,17 @@ export function PreviewDialog({ onClose }: { onClose: () => void }) {
         ...(v12
           ? []
           : ([[t('lmsProgress'), values['cmi.progress_measure'] ?? '']] as [string, string][])),
+        ...(v12
+          ? ([
+              [
+                t('lmsScore'),
+                scoreText(values['cmi.core.score.raw'], values['cmi.core.score.max']),
+              ],
+            ] as [string, string][])
+          : ([
+              [t('lmsScore'), scoreText(values['cmi.score.raw'], values['cmi.score.max'])],
+              [t('lmsSuccess'), values['cmi.success_status'] ?? ''],
+            ] as [string, string][])),
         ['suspend_data', values['cmi.suspend_data'] ?? ''],
         [
           t('lmsSession'),
@@ -159,4 +170,10 @@ export function PreviewDialog({ onClose }: { onClose: () => void }) {
       </div>
     </dialog>
   );
+}
+
+/** The runtime reports raw as a percentage (min 0, max 100). */
+function scoreText(raw: string | undefined, max: string | undefined): string {
+  if (!raw) return '';
+  return max === '100' ? `${raw} %` : max ? `${raw} / ${max}` : raw;
 }

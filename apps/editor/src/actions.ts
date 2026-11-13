@@ -21,8 +21,10 @@ import {
   selectChapter,
   splitClip,
   DEFAULT_CLIP_DURATION,
+  createQuestion,
 } from '@clipcourse/editor-core';
-import type { AnimationType, ClipType, TextStyle } from '@clipcourse/format';
+import type { AnimationType, Chapter, ClipType, QuestionKind, TextStyle } from '@clipcourse/format';
+import { t } from './i18n.js';
 import type { EditorSession } from './session.js';
 
 /**
@@ -33,7 +35,7 @@ import type { EditorSession } from './session.js';
 export function addClipAt(
   session: EditorSession,
   type: ClipType,
-  options: { assetId?: string; trackId?: string; time?: number } = {},
+  options: { assetId?: string; trackId?: string; time?: number; questionKind?: QuestionKind } = {},
 ): string | null {
   const { store } = session;
   const state = store.getState();
@@ -46,6 +48,7 @@ export function addClipAt(
     start: time,
     ...(options.assetId ? { assetId: options.assetId } : {}),
     ...(asset ? { asset } : {}),
+    ...(options.questionKind ? { questionKind: options.questionKind } : {}),
   });
 
   if (options.trackId && findTrack(state.course, options.trackId)?.scope.kind === 'course') {
@@ -103,6 +106,8 @@ function defaultTrackName(type: ClipType): string {
       return 'Video';
     case 'image':
       return 'Images';
+    case 'question':
+      return 'Questions';
     default:
       return 'Text';
   }
@@ -180,6 +185,23 @@ export function insertTemplate(session: EditorSession, template: ChapterTemplate
     addChapter(result.chapter, index)(draft);
   });
   store.getState().setChapter(result.chapter.id);
+}
+
+/** Adds a quiz chapter (one sample question) after the current chapter and opens it. */
+export function addQuizChapter(session: EditorSession) {
+  const { store } = session;
+  const state = store.getState();
+  const index = state.course.chapters.findIndex((c) => c.id === state.chapterId) + 1;
+  const chapter: Chapter = {
+    id: session.newId('chapter'),
+    title: t('quiz'),
+    duration: 1000,
+    transition: { mode: 'wait' },
+    tracks: [],
+    quiz: { questions: [createQuestion('single', session.newId('question'))] },
+  };
+  store.getState().execute('Add quiz chapter', addChapter(chapter, index));
+  store.getState().setChapter(chapter.id);
 }
 
 export async function saveChapterAsTemplate(

@@ -4,6 +4,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { exportScorm, type ScormVersion } from '@clipcourse/exporter';
 import type { Course } from '@clipcourse/format';
+import { expect, type Frame, type FrameLocator } from '@playwright/test';
 
 const root = fileURLToPath(new URL('../../../', import.meta.url));
 const runtimeFile = `${root}packages/scorm-runtime/dist/clipcourse-runtime.iife.js`;
@@ -20,7 +21,7 @@ export function testCourse(id: string): Course {
     style: { fontSize: 96, color: '#ffffff', align: 'center' as const },
   });
   return {
-    formatVersion: 2,
+    formatVersion: 3,
     id,
     title: `Clipcourse LMS test ${id}`,
     language: 'en',
@@ -56,8 +57,52 @@ export function testCourse(id: string): Course {
         transition: { mode: 'wait' },
         tracks: [{ id: 't3', clips: [text('c2', 'Chapter two')] }],
       },
+      {
+        id: 'quiz',
+        title: 'Final quiz',
+        duration: 1000,
+        transition: { mode: 'wait' },
+        tracks: [],
+        quiz: {
+          questions: [
+            {
+              id: 'q_color',
+              kind: 'single',
+              prompt: 'Which color is the sky on a clear day?',
+              choices: [
+                { id: 'blue', text: 'Blue' },
+                { id: 'green', text: 'Green' },
+              ],
+              correct: 'blue',
+            },
+            {
+              id: 'q_number',
+              kind: 'text',
+              prompt: 'Emergency number in the EU?',
+              answers: ['112'],
+            },
+          ],
+        },
+      },
     ],
+    assessment: { passingScore: 50 },
   };
+}
+
+/**
+ * Plays the quiz chapter: first answer right, second wrong, so the LMS
+ * should store a score of 50 and "passed" (passing score 50 %).
+ */
+export async function answerQuiz(course: Frame | FrameLocator) {
+  await expect(course.locator('.ccp-quiz-progress')).toHaveText('Question 1 of 2');
+  await course.getByRole('radio', { name: 'Blue' }).check();
+  await course.getByRole('button', { name: 'Check answer' }).click();
+  await course.getByRole('button', { name: 'Next question' }).click();
+  await course.getByRole('textbox', { name: 'Your answer' }).fill('110');
+  await course.getByRole('button', { name: 'Check answer' }).click();
+  await course.getByRole('button', { name: 'Show result' }).click();
+  await expect(course.locator('.ccp-quiz-score')).toContainText('50');
+  await expect(course.locator('.ccp-quiz-verdict')).toHaveText(/passed/i);
 }
 
 export function buildPackage(version: ScormVersion, id: string): Buffer {

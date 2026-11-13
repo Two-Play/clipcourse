@@ -8,8 +8,10 @@ import type {
   ClipType,
   Course,
   Frame,
+  QuestionKind,
   Track,
 } from '@clipcourse/format';
+import { createQuestion } from './questions.js';
 import { FORMAT_VERSION } from '@clipcourse/format';
 
 /** Where a track lives: in a chapter, or in the course layer (all chapters). */
@@ -181,6 +183,8 @@ export interface NewClipOptions {
   duration?: number;
   assetId?: string;
   asset?: Asset;
+  /** For question clips. */
+  questionKind?: QuestionKind;
 }
 
 /** Creates a clip with sensible defaults for laypeople. */
@@ -222,6 +226,18 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         strokeWidth: 8,
         radius: 8,
       };
+    case 'question': {
+      const { width: sw, height: sh } = course.stage;
+      const width = Math.round(sw * 0.7);
+      const height = Math.round(sh * 0.7);
+      return {
+        ...base,
+        duration: Math.max(duration, 5000),
+        type,
+        frame: { x: Math.round((sw - width) / 2), y: Math.round((sh - height) / 2), width, height },
+        question: createQuestion(options.questionKind ?? 'single', `${id}_q`, options.assetId),
+      };
+    }
     case 'highlight':
       return {
         ...base,

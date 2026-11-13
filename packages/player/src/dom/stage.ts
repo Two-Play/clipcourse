@@ -4,7 +4,9 @@
  * current chapter (and the course layer) are created once and then only
  * shown, hidden and re-stacked, so rendering any time is cheap and stateless.
  */
-import type { Asset, Course } from '@clipcourse/format';
+import type { Asset, Course, QuestionClip } from '@clipcourse/format';
+import { defaultStrings, type PlayerStrings } from '../i18n.js';
+import { renderQuestion } from './question.js';
 import { orderedTracks, type SceneState } from '../core/evaluate.js';
 import { cueTextAt, parseVtt, type Cue } from '../core/vtt.js';
 import type { AnimationState } from '../core/animation.js';
@@ -17,6 +19,12 @@ export interface StageOptions {
   loadText?: (url: string) => Promise<string>;
   onPlayBlocked: (error: unknown) => void;
   onMediaError: (clipId: string) => void;
+  /**
+   * Fills a question clip's host element. Without it, questions render as
+   * a static (non-interactive) preview, as in the editor.
+   */
+  mountQuestion?: (clip: QuestionClip, host: HTMLElement) => void;
+  strings?: PlayerStrings;
 }
 
 type CaptionEntry = Cue[] | 'loading' | 'error';
@@ -213,6 +221,7 @@ export class Stage {
           }
           this.mediaOwner.set(view.media, clip.id);
         }
+        if (clip.type === 'question') this.fillQuestion(clip, view.root);
         this.views.set(clip.id, view);
         this.layer.append(view.root);
         if ((clip.type === 'video' || clip.type === 'audio') && clip.captionsAssetId) {
@@ -231,6 +240,25 @@ export class Stage {
 
     this.element.style.background = chapter.background ?? this.course.stage.background;
     this.chapterIndex = index;
+  }
+
+  private fillQuestion(clip: QuestionClip, root: HTMLElement) {
+    const host = root.querySelector<HTMLElement>('.ccp-question-host');
+    if (!host) return;
+    if (this.options.mountQuestion) {
+      this.options.mountQuestion(clip, host);
+      return;
+    }
+    host.replaceChildren(
+      renderQuestion(this.element.ownerDocument, {
+        question: clip.question,
+        state: undefined,
+        strings: this.options.strings ?? defaultStrings,
+        assets: this.course.assets,
+        imageUrl: this.options.resolveAsset,
+        interactive: false,
+      }),
+    );
   }
 
   private loadCaptions(assetId: string) {

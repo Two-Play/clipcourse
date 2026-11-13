@@ -1,11 +1,14 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /**
+ * Needs learning progress enabled in ILIAS (scripts/lms/ilias-up.sh does it):
+ * otherwise ILIAS runs SCORM 1.2 in "no-credit" mode and drops scores.
+ *
  * Uploads exported packages to a real ILIAS and checks launch, media,
  * resume and completion. Runs only when ILIAS_URL is set, see
  * docs/lms-testing.md.
  */
 import { expect, test, type Frame, type Page } from '@playwright/test';
-import { buildPackage } from './package.js';
+import { answerQuiz, buildPackage } from './package.js';
 
 const url = process.env.ILIAS_URL;
 const user = process.env.ILIAS_USER ?? 'root';
@@ -64,7 +67,9 @@ async function launch(page: Page, launchUrl: string) {
 }
 
 for (const version of ['1.2', '2004'] as const) {
-  test(`ILIAS: SCORM ${version} package launches, resumes and completes`, async ({ page }) => {
+  test(`ILIAS: SCORM ${version} package launches, resumes, scores and completes`, async ({
+    page,
+  }) => {
     const name = `cc_${version.replace('.', '')}_${Date.now().toString(36)}`;
     await login(page);
     const refId = await createModule(page, version, name, buildPackage(version, name));
@@ -88,10 +93,12 @@ for (const version of ['1.2', '2004'] as const) {
     // Second session: resumes at the end of chapter one.
     course = await launch(page, launchUrl);
     await expect(course.getByRole('button', { name: 'Resume' })).toBeVisible();
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 1 of 2: First chapter');
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 1 of 3: First chapter');
     await course.getByRole('button', { name: 'Resume' }).click();
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 2 of 2: Second chapter');
-    await expect(course.getByRole('button', { name: 'Replay' })).toBeVisible({ timeout: 10000 });
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 2 of 3: Second chapter');
+    await course.getByRole('button', { name: 'Continue' }).click({ timeout: 10000 });
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 3 of 3: Final quiz');
+    await answerQuiz(course);
     await page.goto(`${url}/ilias.php?baseClass=ilrepositorygui&ref_id=1`);
     await page.waitForLoadState('networkidle');
 
@@ -103,6 +110,10 @@ for (const version of ['1.2', '2004'] as const) {
       .selectOption({ label: 'Basic report for chapters (SCO)' });
     await page.getByRole('button', { name: 'Apply Filter' }).click();
     await page.waitForLoadState('networkidle');
-    await expect(page.getByRole('cell', { name: 'completed', exact: true }).first()).toBeVisible();
+    // 1.2 has one status (passed/failed); 2004 separates completion and success.
+    const statuses = version === '1.2' ? ['passed'] : ['completed', 'passed'];
+    for (const status of statuses) {
+      await expect(page.getByRole('cell', { name: status, exact: true }).first()).toBeVisible();
+    }
   });
 }

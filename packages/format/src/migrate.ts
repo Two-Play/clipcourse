@@ -16,6 +16,8 @@ const migrations: Record<number, (doc: Json) => Json> = {
   // v2 only adds optional features (animations, highlight and progress
   // clips, chapter markers).
   1: (doc) => ({ ...doc, formatVersion: 2 }),
+  // v3 only adds optional features (questions, quiz chapters, assessment).
+  2: (doc) => ({ ...doc, formatVersion: 3 }),
 };
 
 /** Returns the format version stored in a raw document. */

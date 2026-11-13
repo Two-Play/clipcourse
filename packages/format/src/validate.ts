@@ -2,7 +2,7 @@
 import * as v from 'valibot';
 import { CourseSchema } from './schema.js';
 import { migrateCourse, FormatVersionError } from './migrate.js';
-import type { Course, Track } from './types.js';
+import type { Course, Question, Track } from './types.js';
 
 export interface ValidationIssue {
   /** JSON-pointer-like path, e.g. "/chapters/0/tracks/1/clips/2/assetId". */
@@ -147,6 +147,70 @@ function checkSemantics(course: Course, issues: ValidationIssue[], warnings: Val
     });
     checkTracks(chapter.tracks, `/chapters/${i}/tracks`, chapter.duration);
   });
+
+  // Questions: unique ids, answers that point to existing choices.
+  const questionIds = new Set<string>();
+  const checkQuestion = (question: Question, path: string) => {
+    checkUnique(questionIds, question.id, `${path}/id`, 'question');
+    const ref = (ids: string[], allowed: { id: string }[], field: string) => {
+      const known = new Set(allowed.map((a) => a.id));
+      if (known.size !== allowed.length)
+        issues.push({ path, message: `Question "${question.id}" has duplicate ${field} ids` });
+      for (const id of ids) {
+        if (!known.has(id))
+          issues.push({
+            path: `${path}/correct`,
+            message: `Question "${question.id}": unknown ${field} "${id}"`,
+          });
+      }
+    };
+    switch (question.kind) {
+      case 'single':
+        ref([question.correct], question.choices, 'choice');
+        break;
+      case 'multiple':
+        ref(question.correct, question.choices, 'choice');
+        break;
+      case 'order':
+        ref([], question.items, 'item');
+        break;
+      case 'match':
+        ref([], question.pairs, 'pair');
+        break;
+      case 'hotspot':
+        ref(question.correct, question.areas, 'area');
+        checkAsset(question.assetId, ['image'], `${path}/assetId`);
+        break;
+      case 'text':
+        break;
+    }
+  };
+  course.chapters.forEach((chapter, i) => {
+    chapter.tracks.forEach((track, ti) =>
+      track.clips.forEach((clip, ci) => {
+        if (clip.type === 'question')
+          checkQuestion(clip.question, `/chapters/${i}/tracks/${ti}/clips/${ci}/question`);
+      }),
+    );
+    chapter.quiz?.questions.forEach((question, qi) =>
+      checkQuestion(question, `/chapters/${i}/quiz/questions/${qi}`),
+    );
+  });
+  for (const tracks of [
+    course.courseLayer?.background ?? [],
+    course.courseLayer?.foreground ?? [],
+  ]) {
+    for (const track of tracks) {
+      for (const clip of track.clips) {
+        if (clip.type === 'question') {
+          issues.push({
+            path: '/courseLayer',
+            message: `Question "${clip.id}" cannot be in the course layer`,
+          });
+        }
+      }
+    }
+  }
 
   for (const [assetId, asset] of Object.entries(course.assets)) {
     if (/^https?:\/\//.test(asset.src)) {

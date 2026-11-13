@@ -1,7 +1,8 @@
 # Testing with a real LMS
 
 Verified so far: **Moodle 5.3.1** and **ILIAS 10.12**, SCORM 1.2 and 2004
-each: launch, media, resume, completion.
+each: launch, media, resume, a quiz chapter (score, passed/failed,
+interactions) and completion.
 
 ## Moodle (automated)
 
@@ -47,7 +48,9 @@ container image, so the script uses the community image
 [`srsolutions/ilias`](https://github.com/srsolutionsag/docker-ilias) from
 sr solutions, an ILIAS service provider. The database uses `utf8`, not
 `utf8mb4`, because the ILIAS database dump exceeds InnoDB's row size
-otherwise. Credentials go to `.lms/ilias.env`.
+otherwise. Credentials go to `.lms/ilias.env`. The script also turns on
+learning progress: without it, ILIAS runs SCORM 1.2 modules in "no-credit"
+mode and silently drops every score and status the course sends.
 
 ```bash
 set -a; source .lms/ilias.env; set +a
@@ -55,8 +58,12 @@ pnpm --filter @clipcourse/editor test:lms
 ```
 
 The ILIAS tests create a "Learning Module SCORM" for each version, then
-launch, resume and complete it. They check the status in the module's
-_Tracking Data → Basic report for chapters (SCO)_. Stop ILIAS with
+launch, resume, answer the quiz (one answer right, one wrong: score 50,
+passing score 50 %) and complete it. They check the status in the module's
+_Tracking Data → Basic report for chapters (SCO)_: `passed` for 1.2,
+`completed` and `passed` for 2004. The Moodle tests check status and score
+in the attempt report, and for 2004 also `cmi.success_status` and the
+interactions in the track details. Stop ILIAS with
 `scripts/lms/ilias-up.sh down`.
 
 Both test suites skip themselves when their URL variable is not set, so

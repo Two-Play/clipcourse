@@ -13,7 +13,7 @@ import {
 import { buildManifest } from '../src/manifest.js';
 
 const course: Course = {
-  formatVersion: 2,
+  formatVersion: 3,
   id: 'my_course',
   title: 'Sicherheit & <Schutz> "2026"',
   language: 'de',

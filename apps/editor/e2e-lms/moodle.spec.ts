@@ -7,7 +7,7 @@
  *     pnpm --filter @clipcourse/editor test:lms
  */
 import { expect, test, type FrameLocator, type Page } from '@playwright/test';
-import { buildPackage } from './package.js';
+import { answerQuiz, buildPackage } from './package.js';
 
 const url = process.env.MOODLE_URL;
 const user = process.env.MOODLE_USER ?? 'admin';
@@ -74,7 +74,9 @@ async function enter(page: Page): Promise<FrameLocator> {
 }
 
 for (const version of ['1.2', '2004'] as const) {
-  test(`Moodle: SCORM ${version} package launches, resumes and completes`, async ({ page }) => {
+  test(`Moodle: SCORM ${version} package launches, resumes, scores and completes`, async ({
+    page,
+  }) => {
     const id = `cc_${version.replace('.', '')}_${Date.now().toString(36)}`;
     await login(page);
     const courseId = await createCourse(page, id);
@@ -97,16 +99,30 @@ for (const version of ['1.2', '2004'] as const) {
     // Second session: resumes at the end of chapter one.
     course = await enter(page);
     await expect(course.getByRole('button', { name: 'Resume' })).toBeVisible();
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 1 of 2: First chapter');
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 1 of 3: First chapter');
     await course.getByRole('button', { name: 'Resume' }).click();
-    await expect(course.locator('.ccp-title')).toHaveText('Chapter 2 of 2: Second chapter');
-    await expect(course.getByRole('button', { name: 'Replay' })).toBeVisible({ timeout: 10000 });
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 2 of 3: Second chapter');
+    await course.getByRole('button', { name: 'Continue' }).click({ timeout: 10000 });
+    await expect(course.locator('.ccp-title')).toHaveText('Chapter 3 of 3: Final quiz');
+    await answerQuiz(course);
     await page.goto(viewUrl);
 
     // Moodle records the attempt as completed (per-attempt report of the SCO).
     const cmid = new URL(viewUrl).searchParams.get('id');
     await page.goto(`${url}/mod/scorm/report.php?id=${cmid}`);
     await page.locator('#attempts a[href*="userreport.php"]').first().click();
-    await expect(page.locator('main, #region-main').first()).toContainText(/\bcompleted\b/i);
+    // Moodle shows one status per attempt (passed for 1.2, completed for 2004) and the score.
+    const main = page.locator('#region-main');
+    await expect(main).toContainText(version === '1.2' ? /\bPassed\b/ : /\bCompleted\b/);
+    await expect(main.getByRole('cell', { name: '50', exact: true })).toBeVisible();
+    if (version === '2004') {
+      await main.getByRole('link', { name: 'Track details' }).click();
+      await expect(
+        page.getByRole('row', { name: /^cmi\.success_status\b.*\bpassed$/ }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole('row', { name: /^cmi\.interactions\.1\.result\b.*\bincorrect$/ }),
+      ).toBeVisible();
+    }
   });
 }

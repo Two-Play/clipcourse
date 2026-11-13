@@ -11,7 +11,7 @@
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",
-    "build": "vite build && node ../../scripts/check-size.mjs dist/clipcourse-player.iife.js 16000"
+    "build": "vite build && node ../../scripts/check-size.mjs dist/clipcourse-player.iife.js 24000"
   },
   "dependencies": {
     "@clipcourse/format": "workspace:*"

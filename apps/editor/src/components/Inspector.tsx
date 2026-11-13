@@ -5,14 +5,22 @@
  * a collapsible "More options" section.
  */
 import {
+  addQuizQuestion,
+  createQuestion,
   findClip,
   fitChapterToContent,
   moveClip,
+  moveQuizQuestion,
+  removeQuizQuestion,
   resizeClip,
   selectChapter,
+  setAssessment,
   setChapterProps,
   setCourseProps,
+  setQuiz,
   updateClip,
+  updateQuizQuestion,
+  type Recipe,
 } from '@clipcourse/editor-core';
 import type {
   Animation,
@@ -23,9 +31,12 @@ import type {
   TextStyle,
   VisualClip,
 } from '@clipcourse/format';
-import { useId, useState, type ReactNode } from 'react';
+import { useEffect, useId, useState, type ReactNode } from 'react';
+import { setQuizFocus } from '../quizFocus.js';
 import { useEditor, useSession } from '../context.js';
 import { t } from '../i18n.js';
+import { cleanQuestion, KIND_LABEL, QuestionEditor } from './QuestionEditor.js';
+import { ArrowDown, ArrowUp, Plus, Trash2 } from 'lucide-react';
 
 export function Inspector() {
   const selection = useEditor((s) => s.selection);
@@ -221,95 +232,118 @@ function ClipInspector({ clip }: { clip: Clip }) {
         />
       </fieldset>
 
-      <fieldset>
-        <legend>{t('text')}</legend>
-        {(clip.type === 'text' || clip.type === 'box') && (
-          <TextField
-            label={t('text')}
-            multiline
-            value={clip.text ?? ''}
-            onChange={(v) =>
-              edit('text', (c) => void ((c.type === 'text' || c.type === 'box') && (c.text = v)))
-            }
-          />
-        )}
-        {clip.type === 'text' && (
-          <SelectField
-            label={t('role')}
-            value={clip.role ?? 'paragraph'}
-            options={[
-              { value: 'paragraph', label: t('roleParagraph') },
-              { value: 'heading', label: t('roleHeading') },
-            ]}
-            onChange={(v) => edit('role', (c) => void (c.type === 'text' && (c.role = v)))}
-          />
-        )}
-        {(clip.type === 'text' || clip.type === 'box') && (
-          <>
-            <NumberField
-              label={t('fontSize')}
-              min={1}
-              max={1000}
-              value={clip.style?.fontSize ?? 48}
-              onCommit={(v) => editStyle('fontSize', v)}
-            />
-            <ColorField
-              label={t('color')}
-              value={clip.style?.color ?? '#ffffff'}
-              onChange={(v) => editStyle('color', v)}
-            />
-            <SelectField
-              label={t('align')}
-              value={clip.style?.align ?? 'left'}
-              options={[
-                { value: 'left', label: '⯇ left' },
-                { value: 'center', label: '≡ center' },
-                { value: 'right', label: 'right ⯈' },
-              ]}
-              onChange={(v) => editStyle('align', v)}
-            />
-          </>
-        )}
-        {(clip.type === 'image' || clip.type === 'video' || clip.type === 'audio') && (
-          <SelectField
-            label={t('media')}
-            value={clip.assetId}
-            options={assetsOf(clip.type)}
-            onChange={(v) =>
-              edit(
-                'asset',
-                (c) =>
-                  void (
-                    (c.type === 'image' || c.type === 'video' || c.type === 'audio') &&
-                    (c.assetId = v)
-                  ),
-              )
-            }
-          />
-        )}
-        {clip.type === 'image' && (
-          <TextField
-            label={t('altText')}
-            hint={t('altHint')}
-            value={clip.alt ?? course.assets[clip.assetId]?.alt ?? ''}
-            onChange={(v) => edit('alt', (c) => void (c.type === 'image' && (c.alt = v)))}
-          />
-        )}
-        {(clip.type === 'video' || clip.type === 'audio') && (
-          <SelectField
-            label={t('captions')}
-            value={clip.captionsAssetId ?? ''}
-            options={[{ value: '', label: t('none') }, ...assetsOf('captions')]}
-            onChange={(v) =>
-              edit('captions', (c) => {
-                if (c.type !== 'video' && c.type !== 'audio') return;
-                if (v) c.captionsAssetId = v;
-                else delete c.captionsAssetId;
+      {clip.type === 'question' && (
+        <fieldset>
+          <legend>{t('question')}</legend>
+          <QuestionEditor
+            question={clip.question}
+            course={course}
+            onChange={(question, field) =>
+              edit(`question.${field}`, (c) => {
+                if (c.type === 'question') c.question = cleanQuestion(question);
               })
             }
           />
+        </fieldset>
+      )}
+
+      {clip.type !== 'question' &&
+        clip.type !== 'highlight' &&
+        clip.type !== 'progress' &&
+        clip.type !== 'shape' && (
+          <fieldset>
+            <legend>{t('text')}</legend>
+            {(clip.type === 'text' || clip.type === 'box') && (
+              <TextField
+                label={t('text')}
+                multiline
+                value={clip.text ?? ''}
+                onChange={(v) =>
+                  edit(
+                    'text',
+                    (c) => void ((c.type === 'text' || c.type === 'box') && (c.text = v)),
+                  )
+                }
+              />
+            )}
+            {clip.type === 'text' && (
+              <SelectField
+                label={t('role')}
+                value={clip.role ?? 'paragraph'}
+                options={[
+                  { value: 'paragraph', label: t('roleParagraph') },
+                  { value: 'heading', label: t('roleHeading') },
+                ]}
+                onChange={(v) => edit('role', (c) => void (c.type === 'text' && (c.role = v)))}
+              />
+            )}
+            {(clip.type === 'text' || clip.type === 'box') && (
+              <>
+                <NumberField
+                  label={t('fontSize')}
+                  min={1}
+                  max={1000}
+                  value={clip.style?.fontSize ?? 48}
+                  onCommit={(v) => editStyle('fontSize', v)}
+                />
+                <ColorField
+                  label={t('color')}
+                  value={clip.style?.color ?? '#ffffff'}
+                  onChange={(v) => editStyle('color', v)}
+                />
+                <SelectField
+                  label={t('align')}
+                  value={clip.style?.align ?? 'left'}
+                  options={[
+                    { value: 'left', label: '⯇ left' },
+                    { value: 'center', label: '≡ center' },
+                    { value: 'right', label: 'right ⯈' },
+                  ]}
+                  onChange={(v) => editStyle('align', v)}
+                />
+              </>
+            )}
+            {(clip.type === 'image' || clip.type === 'video' || clip.type === 'audio') && (
+              <SelectField
+                label={t('media')}
+                value={clip.assetId}
+                options={assetsOf(clip.type)}
+                onChange={(v) =>
+                  edit(
+                    'asset',
+                    (c) =>
+                      void (
+                        (c.type === 'image' || c.type === 'video' || c.type === 'audio') &&
+                        (c.assetId = v)
+                      ),
+                  )
+                }
+              />
+            )}
+            {clip.type === 'image' && (
+              <TextField
+                label={t('altText')}
+                hint={t('altHint')}
+                value={clip.alt ?? course.assets[clip.assetId]?.alt ?? ''}
+                onChange={(v) => edit('alt', (c) => void (c.type === 'image' && (c.alt = v)))}
+              />
+            )}
+            {(clip.type === 'video' || clip.type === 'audio') && (
+              <SelectField
+                label={t('captions')}
+                value={clip.captionsAssetId ?? ''}
+                options={[{ value: '', label: t('none') }, ...assetsOf('captions')]}
+                onChange={(v) =>
+                  edit('captions', (c) => {
+                    if (c.type !== 'video' && c.type !== 'audio') return;
+                    if (v) c.captionsAssetId = v;
+                    else delete c.captionsAssetId;
+                  })
+                }
+              />
+            )}
+          </fieldset>
         )}
-      </fieldset>
 
       {(clip.type === 'box' || clip.type === 'shape') && (
         <fieldset>
@@ -604,6 +638,7 @@ function ChapterInspector() {
           }
         />
       </fieldset>
+      <QuizFields />
       <fieldset>
         <legend>{t('course')}</legend>
         <TextField
@@ -621,8 +656,131 @@ function ChapterInspector() {
             store.getState().execute('Course language', setCourseProps({ language: v }))
           }
         />
+        <CheckField
+          label={t('useScore')}
+          checked={course.assessment !== undefined}
+          onChange={(on) =>
+            store.getState().execute('Passing score', setAssessment(on ? 80 : null))
+          }
+        />
+        {course.assessment && (
+          <NumberField
+            label={t('passingScore')}
+            min={0}
+            max={100}
+            value={course.assessment.passingScore}
+            onCommit={(v) => store.getState().execute('Passing score', setAssessment(v))}
+          />
+        )}
       </fieldset>
     </div>
+  );
+}
+
+/** Quiz chapter: settings and its list of questions; one question is edited at a time. */
+function QuizFields() {
+  const session = useSession();
+  const { store } = session;
+  const chapter = useEditor(selectChapter);
+  const course = useEditor((s) => s.course);
+  const quiz = chapter.quiz;
+  const [openId, setOpenId] = useState<string | null>(null);
+  const run = (label: string, recipe: Recipe, mergeKey?: string) =>
+    store.getState().execute(label, recipe, mergeKey ? { mergeKey } : undefined);
+  const current = quiz?.questions.find((q) => q.id === openId) ?? quiz?.questions[0];
+  const currentId = current?.id ?? null;
+  useEffect(() => {
+    setQuizFocus(currentId);
+    return () => setQuizFocus(null);
+  }, [currentId]);
+  if (!quiz || !current) return null;
+  return (
+    <fieldset className="quiz-fields">
+      <legend>{t('quiz')}</legend>
+      <CheckField
+        label={t('quizShuffle')}
+        checked={quiz.shuffle === true}
+        onChange={(v) => run('Quiz settings', setQuiz(chapter.id, { shuffle: v }))}
+      />
+      <NumberField
+        label={t('quizRetries')}
+        min={0}
+        max={20}
+        value={quiz.retries ?? 0}
+        onCommit={(v) => run('Quiz settings', setQuiz(chapter.id, { retries: v }))}
+      />
+      <ol className="quiz-questions" aria-label={t('questions')}>
+        {quiz.questions.map((q, index) => (
+          <li key={q.id} className={q.id === current.id ? 'is-current' : ''}>
+            <button
+              type="button"
+              className="quiz-question-pick"
+              aria-current={q.id === current.id}
+              onClick={() => setOpenId(q.id)}
+            >
+              <span className="quiz-question-kind">{t(KIND_LABEL[q.kind])}</span>
+              {q.prompt}
+            </button>
+            <button
+              type="button"
+              className="icon"
+              aria-label={t('moveUp')}
+              title={t('moveUp')}
+              disabled={index === 0}
+              onClick={() => run('Move question', moveQuizQuestion(chapter.id, q.id, index - 1))}
+            >
+              <ArrowUp size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="icon"
+              aria-label={t('moveDown')}
+              title={t('moveDown')}
+              disabled={index === quiz.questions.length - 1}
+              onClick={() => run('Move question', moveQuizQuestion(chapter.id, q.id, index + 1))}
+            >
+              <ArrowDown size={14} aria-hidden />
+            </button>
+            <button
+              type="button"
+              className="icon"
+              aria-label={t('delete')}
+              title={t('delete')}
+              disabled={quiz.questions.length <= 1}
+              onClick={() => run('Delete question', removeQuizQuestion(chapter.id, q.id))}
+            >
+              <Trash2 size={14} aria-hidden />
+            </button>
+          </li>
+        ))}
+      </ol>
+      <button
+        type="button"
+        className="icon-button"
+        onClick={() => {
+          const id = session.newId('question');
+          run('Add question', addQuizQuestion(chapter.id, createQuestion('single', id)));
+          setOpenId(id);
+        }}
+      >
+        <Plus size={14} aria-hidden /> {t('addQuestion')}
+      </button>
+      <QuestionEditor
+        key={current.id}
+        question={current}
+        course={course}
+        onChange={(question, field) =>
+          run(
+            'Edit question',
+            updateQuizQuestion(chapter.id, current.id, () => cleanQuestion(question)),
+            `quiz:${current.id}:${field}`,
+          )
+        }
+      />
+      <button type="button" onClick={() => run('Remove quiz', setQuiz(chapter.id, null))}>
+        {t('removeQuiz')}
+      </button>
+    </fieldset>
   );
 }
 

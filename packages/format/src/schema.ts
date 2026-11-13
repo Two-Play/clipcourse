@@ -168,6 +168,100 @@ const ProgressClipSchema = v.strictObject({
   radius: v.exactOptional(nonNegative),
 });
 
+const text = (max: number) => v.pipe(v.string(), v.maxLength(max));
+const ChoiceSchema = v.strictObject({
+  id,
+  text: v.pipe(v.string(), v.minLength(1), v.maxLength(2000)),
+});
+const unitNumber = v.pipe(v.number(), v.minValue(0), v.maxValue(1));
+
+const questionBase = {
+  id,
+  prompt: v.pipe(v.string(), v.minLength(1), v.maxLength(5000)),
+  points: v.exactOptional(v.pipe(v.number(), v.minValue(0), v.maxValue(1000))),
+  scored: v.exactOptional(v.boolean()),
+  attempts: v.exactOptional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
+  showSolution: v.exactOptional(v.boolean()),
+  feedback: v.exactOptional(
+    v.strictObject({
+      correct: v.exactOptional(text(5000)),
+      incorrect: v.exactOptional(text(5000)),
+    }),
+  ),
+};
+
+export const QuestionSchema = v.variant('kind', [
+  v.strictObject({
+    ...questionBase,
+    kind: v.literal('single'),
+    choices: v.pipe(v.array(ChoiceSchema), v.minLength(2), v.maxLength(20)),
+    correct: id,
+  }),
+  v.strictObject({
+    ...questionBase,
+    kind: v.literal('multiple'),
+    choices: v.pipe(v.array(ChoiceSchema), v.minLength(2), v.maxLength(20)),
+    correct: v.pipe(v.array(id), v.minLength(1)),
+  }),
+  v.strictObject({
+    ...questionBase,
+    kind: v.literal('text'),
+    answers: v.pipe(
+      v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
+      v.minLength(1),
+      v.maxLength(50),
+    ),
+    caseSensitive: v.exactOptional(v.boolean()),
+  }),
+  v.strictObject({
+    ...questionBase,
+    kind: v.literal('order'),
+    items: v.pipe(v.array(ChoiceSchema), v.minLength(2), v.maxLength(20)),
+  }),
+  v.strictObject({
+    ...questionBase,
+    kind: v.literal('match'),
+    pairs: v.pipe(
+      v.array(
+        v.strictObject({
+          id,
+          left: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+          right: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+        }),
+      ),
+      v.minLength(2),
+      v.maxLength(20),
+    ),
+  }),
+  v.strictObject({
+    ...questionBase,
+    kind: v.literal('hotspot'),
+    assetId: id,
+    alt: v.exactOptional(text(1000)),
+    areas: v.pipe(
+      v.array(
+        v.strictObject({
+          id,
+          label: v.pipe(v.string(), v.minLength(1), v.maxLength(200)),
+          x: unitNumber,
+          y: unitNumber,
+          width: unitNumber,
+          height: unitNumber,
+        }),
+      ),
+      v.minLength(1),
+      v.maxLength(30),
+    ),
+    correct: v.pipe(v.array(id), v.minLength(1)),
+  }),
+]);
+
+const QuestionClipSchema = v.strictObject({
+  ...visualBase,
+  type: v.literal('question'),
+  question: QuestionSchema,
+});
+
 const ClipSchema = v.variant('type', [
   ImageClipSchema,
   TextClipSchema,
@@ -177,6 +271,7 @@ const ClipSchema = v.variant('type', [
   AudioClipSchema,
   HighlightClipSchema,
   ProgressClipSchema,
+  QuestionClipSchema,
 ]);
 
 const TrackSchema = v.strictObject({
@@ -206,10 +301,17 @@ const ChapterSchema = v.strictObject({
     ),
   ),
   tracks: v.array(TrackSchema),
+  quiz: v.exactOptional(
+    v.strictObject({
+      questions: v.pipe(v.array(QuestionSchema), v.minLength(1), v.maxLength(200)),
+      shuffle: v.exactOptional(v.boolean()),
+      retries: v.exactOptional(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100))),
+    }),
+  ),
 });
 
 export const CourseSchema = v.strictObject({
-  formatVersion: v.literal(2),
+  formatVersion: v.literal(3),
   id,
   title: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
   language: v.pipe(v.string(), v.regex(LANGUAGE_PATTERN, 'Invalid language tag')),
@@ -222,6 +324,9 @@ export const CourseSchema = v.strictObject({
     }),
   ),
   chapters: v.pipe(v.array(ChapterSchema), v.minLength(1, 'A course needs at least one chapter')),
+  assessment: v.exactOptional(
+    v.strictObject({ passingScore: v.pipe(v.number(), v.minValue(0), v.maxValue(100)) }),
+  ),
   extensions: v.exactOptional(v.record(v.string(), v.unknown())),
 });
 

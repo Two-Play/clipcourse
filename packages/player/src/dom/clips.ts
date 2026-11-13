@@ -96,6 +96,12 @@ export function createClipView(
       }
       break;
     }
+    case 'question': {
+      const host = doc.createElement('div');
+      host.className = 'ccp-question-host';
+      root.append(host);
+      break;
+    }
     case 'highlight': {
       root.setAttribute('aria-hidden', clip.label ? 'false' : 'true');
       root.classList.add(`ccp-hl-${clip.kind}`);

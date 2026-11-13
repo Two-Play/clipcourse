@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * Clipcourse course format, version 2.
+ * Clipcourse course format, version 3.
  *
  * Version history:
  * - 1: courses, chapters, tracks, clips (image, text, shape, box, video,
@@ -8,6 +8,8 @@
  * - 2: clip animations (in/out), highlight and progress clips, chapter
  *      markers. Purely additive: every v1 document is a valid v2 document
  *      once its version number is raised.
+ * - 3: questions (question clips that pause the timeline, quiz chapters)
+ *      and course assessment (passing score). Additive as well.
  *
  * Conventions:
  * - All times and durations are integer milliseconds.
@@ -16,7 +18,7 @@
  * - Track order is the stacking order: `tracks[0]` is the back-most layer.
  */
 
-export const FORMAT_VERSION = 2 as const;
+export const FORMAT_VERSION = 3 as const;
 
 export interface Course {
   formatVersion: typeof FORMAT_VERSION;
@@ -31,6 +33,8 @@ export interface Course {
   /** Elements shown in every chapter (background, logo, …). Optional. */
   courseLayer?: CourseLayer;
   chapters: Chapter[];
+  /** Scoring of the course's questions; without it, questions are practice only. */
+  assessment?: Assessment;
   /**
    * Namespaced data for features that are not part of the core format yet
    * (e.g. quizzes). Keys should be reverse-DNS or package names. Players
@@ -90,7 +94,99 @@ export interface Chapter {
   /** Jump points inside the chapter, shown in the table of contents. */
   markers?: Marker[];
   tracks: Track[];
+  /**
+   * Makes this a quiz chapter: the player shows the questions one after
+   * another (over the chapter's tracks at time 0) instead of playing the
+   * timeline. The chapter counts as seen when the quiz is finished.
+   */
+  quiz?: Quiz;
 }
+
+export interface Assessment {
+  /** Percentage (0–100) of the scored points needed to pass. */
+  passingScore: number;
+}
+
+export interface Quiz {
+  questions: Question[];
+  /** Shuffle the question order (deterministic per learner attempt is not needed: fixed seed). */
+  shuffle?: boolean;
+  /** How often the learner may restart the quiz after finishing it. Default 0. */
+  retries?: number;
+}
+
+export type QuestionKind = 'single' | 'multiple' | 'text' | 'order' | 'match' | 'hotspot';
+
+export interface Choice {
+  id: string;
+  text: string;
+}
+
+interface QuestionBase {
+  /** Stable id: used for progress and as SCORM interaction id. */
+  id: string;
+  prompt: string;
+  /** Points for a correct answer, default 1. */
+  points?: number;
+  /** Counts towards the course score, default true. */
+  scored?: boolean;
+  /** Allowed attempts; 0 means unlimited. Default 1. */
+  attempts?: number;
+  /** Show the correct answer after the last attempt. Default true. */
+  showSolution?: boolean;
+  feedback?: { correct?: string; incorrect?: string };
+}
+
+/** One correct choice (also true/false). */
+export interface SingleChoiceQuestion extends QuestionBase {
+  kind: 'single';
+  choices: Choice[];
+  correct: string;
+}
+
+/** Several correct choices; all of them and nothing else must be selected. */
+export interface MultipleChoiceQuestion extends QuestionBase {
+  kind: 'multiple';
+  choices: Choice[];
+  correct: string[];
+}
+
+/** Free text compared with accepted answers (trimmed, spaces collapsed). */
+export interface TextQuestion extends QuestionBase {
+  kind: 'text';
+  answers: string[];
+  caseSensitive?: boolean;
+}
+
+/** Bring items into order; `items` is the correct order. */
+export interface OrderQuestion extends QuestionBase {
+  kind: 'order';
+  items: Choice[];
+}
+
+/** Match each left item to its right item. */
+export interface MatchQuestion extends QuestionBase {
+  kind: 'match';
+  pairs: { id: string; left: string; right: string }[];
+}
+
+/** Click the right place in an image. Areas are relative to the image (0–1). */
+export interface HotspotQuestion extends QuestionBase {
+  kind: 'hotspot';
+  assetId: string;
+  alt?: string;
+  areas: { id: string; label: string; x: number; y: number; width: number; height: number }[];
+  /** Ids of the areas that count as correct. */
+  correct: string[];
+}
+
+export type Question =
+  | SingleChoiceQuestion
+  | MultipleChoiceQuestion
+  | TextQuestion
+  | OrderQuestion
+  | MatchQuestion
+  | HotspotQuestion;
 
 export interface Marker {
   id: string;
@@ -263,8 +359,25 @@ export interface ProgressClip extends VisualClipBase {
   radius?: number;
 }
 
+/**
+ * A question on the timeline. When playback reaches its start, the player
+ * pauses until the question is answered; the clip stays visible (with
+ * feedback) until its end.
+ */
+export interface QuestionClip extends VisualClipBase {
+  type: 'question';
+  question: Question;
+}
+
 export type VisualClip =
-  ImageClip | TextClip | ShapeClip | BoxClip | VideoClip | HighlightClip | ProgressClip;
+  | ImageClip
+  | TextClip
+  | ShapeClip
+  | BoxClip
+  | VideoClip
+  | HighlightClip
+  | ProgressClip
+  | QuestionClip;
 export type MediaClip = VideoClip | AudioClip;
 export type Clip = VisualClip | AudioClip;
 export type ClipType = Clip['type'];

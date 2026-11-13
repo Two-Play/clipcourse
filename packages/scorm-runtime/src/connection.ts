@@ -18,11 +18,36 @@ export interface LmsConnection {
   getLocation(): string;
   /** Stores bookmark data; `progress` is 0..1 (SCORM 2004 progress_measure). */
   saveProgress(data: { suspendData: string; location: string; progress: number }): void;
-  setCompleted(): void;
+  /**
+   * Marks the attempt complete. With `passed` (an assessment was taken),
+   * SCORM 1.2 reports "passed"/"failed" instead of "completed".
+   */
+  setCompleted(passed?: boolean | null): void;
+  /** Score in percent of the scored points (0–100). */
+  setScore(score: { earned: number; possible: number }): void;
+  /** SCORM 2004 success_status; SCORM 1.2 keeps it for setCompleted. */
+  setSuccess(passed: boolean): void;
+  /** Journals one answer (cmi.interactions). */
+  recordInteraction(interaction: Interaction): void;
   commit(): void;
   /** Ends the session; safe to call more than once. */
   terminate(): void;
   readonly diagnostics: string[];
+}
+
+export type InteractionType = 'choice' | 'fill-in' | 'sequencing' | 'matching' | 'other';
+
+export interface Interaction {
+  id: string;
+  type: InteractionType;
+  /** Response as a list of identifiers (choice, sequencing), pairs (matching) or text. */
+  response: string[] | [string, string][] | string;
+  correct: string[] | [string, string][] | string;
+  result: boolean;
+  weighting: number;
+  description?: string;
+  /** Short ids for SCORM 1.2 choice/sequencing vocabularies (index → single character). */
+  ids?: string[];
 }
 
 /** SCORM 1.2 allows 4096 characters of suspend data, SCORM 2004 at least 64000. */
@@ -115,6 +140,8 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
   let completed = status === 'completed' || status === 'passed';
   const resumed = get(el.entry) === 'resume';
   let active = true;
+  let success: boolean | null = null;
+  let interactionCount = 0;
 
   // Ask for a resumable exit right away, so every commit carries it. Some
   // LMS players save asynchronously and lose the last call when the page
@@ -151,11 +178,70 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
         set('cmi.progress_measure', completed ? '1' : String(Math.round(measure * 1e7) / 1e7));
       }
     },
-    setCompleted() {
+    setCompleted(passed?: boolean | null) {
       if (!active || completed) return;
       completed = true;
-      set(el.status, 'completed');
-      if (version === '2004') set('cmi.progress_measure', '1');
+      const outcome = passed ?? success;
+      if (version === '1.2') {
+        set(el.status, outcome === true ? 'passed' : outcome === false ? 'failed' : 'completed');
+      } else {
+        set(el.status, 'completed');
+        set('cmi.progress_measure', '1');
+        if (outcome !== null && outcome !== undefined)
+          set('cmi.success_status', outcome ? 'passed' : 'failed');
+      }
+    },
+    setScore({ earned, possible }) {
+      if (!active || possible <= 0) return;
+      const percent = Math.round((earned / possible) * 10000) / 100;
+      const prefix = version === '1.2' ? 'cmi.core.score' : 'cmi.score';
+      set(`${prefix}.min`, '0');
+      set(`${prefix}.max`, '100');
+      set(`${prefix}.raw`, String(percent));
+      if (version === '2004')
+        set('cmi.score.scaled', String(Math.round((percent / 100) * 10000) / 10000));
+    },
+    setSuccess(passed: boolean) {
+      if (!active) return;
+      success = passed;
+      if (version === '2004') set('cmi.success_status', passed ? 'passed' : 'failed');
+    },
+    recordInteraction(interaction: Interaction) {
+      if (!active) return;
+      const countText = get('cmi.interactions._count');
+      const n = /^\d+$/.test(countText) ? Number(countText) : interactionCount;
+      interactionCount = n + 1;
+      const base = `cmi.interactions.${n}`;
+      const format = (value: Interaction['response']) =>
+        formatResponse(version, interaction.type, value, interaction.ids);
+      set(`${base}.id`, interaction.id.slice(0, version === '1.2' ? 255 : 4000));
+      set(
+        `${base}.type`,
+        version === '1.2' && interaction.type === 'other' ? 'performance' : interaction.type,
+      );
+      set(`${base}.weighting`, String(interaction.weighting));
+      set(
+        `${base}.${version === '1.2' ? 'student_response' : 'learner_response'}`,
+        format(interaction.response),
+      );
+      set(`${base}.correct_responses.0.pattern`, format(interaction.correct));
+      set(
+        `${base}.result`,
+        interaction.result ? 'correct' : version === '1.2' ? 'wrong' : 'incorrect',
+      );
+      if (version === '2004') {
+        set(`${base}.timestamp`, new Date(now()).toISOString().replace(/\.\d{3}Z$/, ''));
+        if (interaction.description)
+          set(`${base}.description`, interaction.description.slice(0, 250));
+      } else {
+        const d = new Date(now());
+        set(
+          `${base}.time`,
+          [d.getHours(), d.getMinutes(), d.getSeconds()]
+            .map((x) => String(x).padStart(2, '0'))
+            .join(':'),
+        );
+      }
     },
     commit() {
       if (active) check('Commit', calls.commit());
@@ -174,4 +260,32 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
       active = false;
     },
   };
+}
+
+/**
+ * Formats a response for the data model. SCORM 1.2 choice and sequencing
+ * responses must use single characters, so ids are mapped to a, b, c …
+ * by their position in `ids`.
+ */
+export function formatResponse(
+  version: ScormVersion,
+  type: InteractionType,
+  value: Interaction['response'],
+  ids: string[] = [],
+): string {
+  if (typeof value === 'string')
+    return version === '1.2' ? value.slice(0, 255) : value.slice(0, 4000);
+  const short = (id: string) => {
+    if (version === '2004') return id;
+    const index = ids.indexOf(id);
+    return index >= 0 && index < 26 ? String.fromCharCode(97 + index) : id;
+  };
+  if (type === 'matching') {
+    const pairs = value as [string, string][];
+    return version === '1.2'
+      ? pairs.map(([a, b]) => `${short(a)}.${short(b)}`).join(',')
+      : pairs.map(([a, b]) => `${a}[.]${b}`).join('[,]');
+  }
+  const list = value as string[];
+  return version === '1.2' ? list.map(short).join(',') : list.join('[,]');
 }

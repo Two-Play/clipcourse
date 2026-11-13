@@ -12,21 +12,25 @@ need a video or audio track.
 
 ## Features
 
-| Feature                                                                                 | Status |
-| --------------------------------------------------------------------------------------- | ------ |
-| Versioned JSON course format (course → chapters → timeline)                             | ✅ M1  |
-| Deterministic player: seek, pause and chapter jumps always show the right picture       | ✅ M1  |
-| Chapter transitions: wait for _Continue_ (default) or continue automatically            | ✅ M1  |
-| Course layer: elements shown in every chapter                                           | ✅ M1  |
-| Progress: bookmark and seen chapters, compact enough for SCORM 1.2                      | ✅ M1  |
-| Accessibility: keyboard control, WebVTT captions, alt text, screen reader announcements | ✅ M1  |
-| Timeline editor: tracks, clips, playhead, drag/trim with snapping, undo/redo            | ✅ M2  |
-| Chapters: add from templates, reorder, duplicate, save as template                      | ✅ M3  |
-| Course layer ("all chapters" tracks), course progress bar                               | ✅ M3  |
-| Animations (fade, slide, zoom), highlights (marker, frame, arrow, spotlight)            | ✅ M3  |
-| Chapter markers and table of contents in the player                                     | ✅ M3  |
-| SCORM 1.2 and 2004 export with resume and completion, LMS simulation in the preview     | ✅ M4  |
-| Desktop app (Tauri), documentation                                                      | M5     |
+| Feature                                                                                 | Status  |
+| --------------------------------------------------------------------------------------- | ------- |
+| Versioned JSON course format (course → chapters → timeline)                             | ✅ M1   |
+| Deterministic player: seek, pause and chapter jumps always show the right picture       | ✅ M1   |
+| Chapter transitions: wait for _Continue_ (default) or continue automatically            | ✅ M1   |
+| Course layer: elements shown in every chapter                                           | ✅ M1   |
+| Progress: bookmark and seen chapters, compact enough for SCORM 1.2                      | ✅ M1   |
+| Accessibility: keyboard control, WebVTT captions, alt text, screen reader announcements | ✅ M1   |
+| Timeline editor: tracks, clips, playhead, drag/trim with snapping, undo/redo            | ✅ M2   |
+| Chapters: add from templates, reorder, duplicate, save as template                      | ✅ M3   |
+| Course layer ("all chapters" tracks), course progress bar                               | ✅ M3   |
+| Animations (fade, slide, zoom), highlights (marker, frame, arrow, spotlight)            | ✅ M3   |
+| Chapter markers and table of contents in the player                                     | ✅ M3   |
+| SCORM 1.2 and 2004 export with resume and completion, LMS simulation in the preview     | ✅ M4   |
+| AI assistants via MCP: build, review and live-edit courses                              | ✅ M4.5 |
+| Questions (choice, text, order, match, hotspot), quiz chapters, score and pass/fail     | ✅ M6a  |
+| Buttons and hotspots with actions, branching, glossary and info popups                  | M6b     |
+| Chapter and course templates, design themes                                             | M6c     |
+| Desktop app (Tauri), documentation                                                      | M5      |
 
 ## Repository layout
 
@@ -81,6 +85,17 @@ restored on the next start.
   zoom). Highlights (frame, marker, arrow, spotlight) can pulse and carry a
   text for screen readers. With "reduce motion" enabled, the player turns
   slides and zooms into fades and stops pulsing.
+- **Question** (Home or Insert) adds a question clip: playback stops at its
+  start until the learner answers. Kinds: single and multiple choice, text
+  answer, put in order, match pairs, click the image (hotspot). Edit the
+  question, answers, points, attempts and feedback in the properties.
+- **Quiz chapter** (Insert) adds a chapter that asks its questions one after
+  another and ends with a result; it can shuffle questions and allow
+  retries. **Make quiz chapter** (Chapter tab) turns the current chapter
+  into one.
+- **Score the course** (course properties, with nothing selected) sets a
+  passing score; the LMS then gets passed or failed. Every question can
+  also be practice only ("Counts towards the score" off).
 - **Preview** plays the course in the real player. With _LMS simulation_
   it also shows what an LMS would store.
 - **Export SCORM…** creates a package for your LMS, see
@@ -117,7 +132,7 @@ create, review and export courses in project folders you allow. See
 
 ```jsonc
 {
-  "formatVersion": 1,
+  "formatVersion": 3,
   "id": "my_course",
   "title": "My course",
   "language": "en",
@@ -153,7 +168,8 @@ create, review and export courses in project folders you allow. See
 The full definition is in
 [`packages/format/src/types.ts`](packages/format/src/types.ts). There is also a
 generated JSON schema in
-[`packages/format/schema/course.v1.schema.json`](packages/format/schema/course.v1.schema.json).
+[`packages/format/schema/course.v3.schema.json`](packages/format/schema/course.v3.schema.json).
+Older documents (version 1 and 2) are migrated automatically when opened.
 All times are integer milliseconds and all positions are logical stage
 pixels. The player scales the stage to fit and keeps its aspect ratio.
 

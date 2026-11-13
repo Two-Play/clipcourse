@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * Keeps schema/course.v2.schema.json in sync with the Valibot schema.
+ * Keeps schema/course.v3.schema.json in sync with the Valibot schema.
  * Regenerate with: UPDATE_SCHEMA=1 pnpm test
  */
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
@@ -9,15 +9,15 @@ import { toJsonSchema } from '@valibot/to-json-schema';
 import { expect, test } from 'vitest';
 import { CourseSchema } from '../src/schema.js';
 
-const file = fileURLToPath(new URL('../schema/course.v2.schema.json', import.meta.url));
+const file = fileURLToPath(new URL('../schema/course.v3.schema.json', import.meta.url));
 
 function build(): string {
   const schema = toJsonSchema(CourseSchema, { errorMode: 'ignore' });
   const doc = {
     $schema: 'http://json-schema.org/draft-07/schema#',
     ...schema,
-    $id: 'urn:clipcourse:schema:course:v2',
-    title: 'Clipcourse course, format version 2',
+    $id: 'urn:clipcourse:schema:course:v3',
+    title: 'Clipcourse course, format version 3',
   };
   return JSON.stringify(doc, null, 2) + '\n';
 }

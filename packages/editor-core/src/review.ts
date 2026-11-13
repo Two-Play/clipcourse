@@ -3,7 +3,15 @@
  * Course review: validation plus accessibility and quality checks, written
  * so that both people and AI assistants can act on them.
  */
-import type { Chapter, Clip, Course, TextStyle, Track, VisualClip } from '@clipcourse/format';
+import type {
+  Chapter,
+  Clip,
+  Course,
+  Question,
+  TextStyle,
+  Track,
+  VisualClip,
+} from '@clipcourse/format';
 import { validateCourse } from '@clipcourse/format/validation';
 
 export type ReviewSeverity = 'error' | 'warning' | 'info';
@@ -155,6 +163,20 @@ export function reviewCourse(course: Course): ReviewIssue[] {
     });
   }
 
+  const reviewQuestion = (question: Question, where: { chapterId: string; clipId?: string }) => {
+    if (question.kind !== 'hotspot') return;
+    usedAssets.add(question.assetId);
+    if (question.alt === undefined && course.assets[question.assetId]?.alt === undefined) {
+      issues.push({
+        severity: 'warning',
+        code: 'missing-alt',
+        ...where,
+        message: `The image of question ${question.id} has no alternative text.`,
+        fix: 'Describe the image in the question\'s "alt". Learners without sight answer with the labelled area buttons.',
+      });
+    }
+  };
+
   const minFont = (course.stage.width / 1920) * 28;
   const largeFont = (course.stage.width / 1920) * 48;
   const usedAssets = new Set<string>();
@@ -162,7 +184,7 @@ export function reviewCourse(course: Course): ReviewIssue[] {
   for (const chapter of course.chapters) {
     const tracks = chapter.tracks;
     const clipCount = tracks.reduce((n, t) => n + t.clips.length, 0);
-    if (clipCount === 0) {
+    if (clipCount === 0 && !chapter.quiz) {
       issues.push({
         severity: 'warning',
         code: 'empty-chapter',
@@ -187,6 +209,7 @@ export function reviewCourse(course: Course): ReviewIssue[] {
         if ((clip.type === 'video' || clip.type === 'audio') && clip.captionsAssetId)
           usedAssets.add(clip.captionsAssetId);
         const where = { chapterId: chapter.id, clipId: clip.id };
+        if (clip.type === 'question') reviewQuestion(clip.question, where);
 
         if (clip.type === 'image') {
           const alt = clip.alt ?? course.assets[clip.assetId]?.alt;
@@ -256,6 +279,36 @@ export function reviewCourse(course: Course): ReviewIssue[] {
           }
         }
       }
+    });
+  }
+
+  for (const chapter of course.chapters) {
+    for (const question of chapter.quiz?.questions ?? []) {
+      reviewQuestion(question, { chapterId: chapter.id });
+    }
+  }
+
+  const scored = course.chapters.flatMap((chapter) => [
+    ...(chapter.quiz?.questions ?? []),
+    ...chapter.tracks.flatMap((t) =>
+      t.clips.flatMap((c) => (c.type === 'question' ? [c.question] : [])),
+    ),
+  ]);
+  const scoredCount = scored.filter((q) => q.scored !== false).length;
+  if (scoredCount > 0 && !course.assessment) {
+    issues.push({
+      severity: 'info',
+      code: 'no-passing-score',
+      message: `The course has ${scoredCount} scored question(s) but no passing score: the LMS gets a score, but no passed/failed.`,
+      fix: 'Set a passing score (set_assessment) if learners should pass or fail.',
+    });
+  }
+  if (course.assessment && scoredCount === 0) {
+    issues.push({
+      severity: 'warning',
+      code: 'passing-score-without-questions',
+      message: 'A passing score is set, but the course has no scored questions.',
+      fix: 'Add questions, or remove the passing score.',
     });
   }
 

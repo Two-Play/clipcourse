@@ -15,6 +15,7 @@ import {
 } from '@clipcourse/player';
 import { findApi, type FoundApi, type ScormVersion, type WindowLike } from './api.js';
 import { connect, type LmsConnection } from './connection.js';
+import { toInteraction } from './interactions.js';
 
 /** Commit at most this often while playing, ms. Chapter ends and completion commit at once. */
 export const COMMIT_INTERVAL = 15000;
@@ -94,12 +95,25 @@ export function runCourse(
   const flush = () => lmsStore?.flush();
 
   if (lms) {
+    const initial = player.getState();
+    if (initial.score.possible > 0) lms.setScore(initial.score);
+    if (initial.score.passed !== null) lms.setSuccess(initial.score.passed);
     // Completed earlier but the LMS missed it (e.g. the window was closed).
-    if (player.getState().complete) lms.setCompleted();
+    if (initial.complete) lms.setCompleted(initial.score.passed);
     player.on((event) => {
       if (event.type === 'chapterseen') flush();
+      if (event.type === 'answer' && event.state.response) {
+        lms.recordInteraction(
+          toInteraction(event.question, event.state.response, event.state.correct),
+        );
+      }
+      if (event.type === 'score') {
+        lms.setScore(event.score);
+        if (event.score.passed !== null) lms.setSuccess(event.score.passed);
+        lms.commit();
+      }
       if (event.type === 'complete') {
-        lms.setCompleted();
+        lms.setCompleted(player.getState().score.passed);
         lms.commit();
       }
     });

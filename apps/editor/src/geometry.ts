@@ -21,6 +21,7 @@ const LABEL_KEYS: Record<Clip['type'], MessageKey> = {
   text: 'clipLabelText',
   highlight: 'clipLabelHighlight',
   progress: 'clipLabelProgress',
+  question: 'clipLabelQuestion',
 };
 
 /** Short human label for a clip on the timeline. */
@@ -34,6 +35,8 @@ export function clipLabel(clip: Clip, course: Course): string {
   }
   if (clip.type === 'shape') return `${kind}: ${clip.shape}`;
   if (clip.type === 'highlight') return `${kind}: ${clip.label || clip.kind}`;
+  if (clip.type === 'question')
+    return `${kind}: ${clip.question.prompt.split('\n')[0]!.slice(0, 60)}`;
   return kind;
 }
 

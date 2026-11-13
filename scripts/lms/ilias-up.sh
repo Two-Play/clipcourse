@@ -73,4 +73,9 @@ for _ in $(seq 1 100); do
   fi
   sleep 6
 done
+# Learning progress must be on: without it ILIAS runs SCORM 1.2 modules in
+# "no-credit" mode and silently drops every score and status the course sends.
+"$RUNTIME" exec cc-ilias-db mariadb -uilias -p"$ILIAS_DB_PASS" ilias -e \
+  "update settings set value='1' where module='common' and keyword='enable_tracking'"
+
 echo "ILIAS is running on http://localhost:$PORT (credentials in .lms/ilias.env)."

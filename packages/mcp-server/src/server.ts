@@ -14,7 +14,7 @@ import {
   type Operation,
 } from '@clipcourse/editor-core';
 import { exportScorm, packageFileName } from '@clipcourse/exporter';
-import schema from '@clipcourse/format/schema/course.v2.schema.json' with { type: 'json' };
+import schema from '@clipcourse/format/schema/course.v3.schema.json' with { type: 'json' };
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FORMAT_GUIDE } from './guide.js';
@@ -56,6 +56,133 @@ const animation = z
     easing: z.enum(['linear', 'ease-in', 'ease-out', 'ease-in-out']).optional(),
   })
   .strict();
+
+// --- Questions ------------------------------------------------------------------------
+
+const answerId = z
+  .string()
+  .min(1)
+  .max(100)
+  .describe('short id, unique within the question, e.g. "a"');
+const questionCommon = {
+  id: z
+    .string()
+    .optional()
+    .describe('question id; leave out to get a generated one (used for LMS interactions)'),
+  prompt: z.string().min(1).max(2000).describe('the question text'),
+  points: z.number().min(0).max(1000).optional().describe('default 1'),
+  scored: z.boolean().optional().describe('false: practice question, not counted in the score'),
+  attempts: z
+    .number()
+    .int()
+    .min(0)
+    .max(100)
+    .optional()
+    .describe('attempts allowed, default 1; 0 = unlimited (until correct)'),
+  showSolution: z.boolean().optional().describe('show the solution when done (default true)'),
+  feedback: z
+    .object({
+      correct: z.string().max(2000).optional(),
+      incorrect: z.string().max(2000).optional(),
+    })
+    .strict()
+    .optional()
+    .describe('own feedback texts instead of "Correct!" / "Not quite."'),
+};
+const choice = z.object({ id: answerId, text: z.string().min(1).max(1000) }).strict();
+const question = z
+  .discriminatedUnion('kind', [
+    z
+      .object({
+        kind: z.literal('single'),
+        ...questionCommon,
+        choices: z.array(choice).min(2).max(20),
+        correct: z.string().describe('id of the one correct choice'),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('multiple'),
+        ...questionCommon,
+        choices: z.array(choice).min(2).max(20),
+        correct: z.array(z.string()).min(1).describe('ids of all correct choices'),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('text'),
+        ...questionCommon,
+        answers: z
+          .array(z.string().min(1).max(500))
+          .min(1)
+          .describe('accepted answers; spaces and (unless caseSensitive) case are ignored'),
+        caseSensitive: z.boolean().optional(),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('order'),
+        ...questionCommon,
+        items: z.array(choice).min(2).max(20).describe('in the CORRECT order; shown shuffled'),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('match'),
+        ...questionCommon,
+        pairs: z
+          .array(
+            z
+              .object({
+                id: answerId,
+                left: z.string().min(1).max(500),
+                right: z.string().min(1).max(500),
+              })
+              .strict(),
+          )
+          .min(2)
+          .max(20)
+          .describe('matching pairs; the right sides are shown shuffled'),
+      })
+      .strict(),
+    z
+      .object({
+        kind: z.literal('hotspot'),
+        ...questionCommon,
+        assetId: z.string().describe('image asset (from import_media)'),
+        alt: z.string().max(2000).optional().describe('describes the image'),
+        areas: z
+          .array(
+            z
+              .object({
+                id: answerId,
+                label: z
+                  .string()
+                  .min(1)
+                  .max(200)
+                  .describe('name of the area; also a button for keyboard and screen reader users'),
+                x: z.number().min(0).max(1),
+                y: z.number().min(0).max(1),
+                width: z.number().min(0).max(1),
+                height: z.number().min(0).max(1),
+              })
+              .strict()
+              .describe('rectangle in fractions of the image (0–1)'),
+          )
+          .min(1)
+          .max(20),
+        correct: z.array(z.string()).min(1).describe('ids of the areas that count as correct'),
+      })
+      .strict(),
+  ])
+  .describe(
+    'A question. Kinds: single (one correct choice), multiple (all correct choices), text (typed answer), order (put items in order), match (pairs), hotspot (click the right area of an image).',
+  );
+const questionPatch = z
+  .record(z.string(), z.unknown())
+  .describe(
+    'Fields to change (same names as in the question; null removes an optional field). Lists such as choices replace the whole list. To change the kind, give a complete question.',
+  );
 
 const clipProps = z
   .object({
@@ -123,6 +250,11 @@ const clipProps = z
       .describe('video/audio: ms skipped at the start of the media'),
     start: z.number().int().min(0).describe('update_clip only: new start in ms (moves the clip)'),
     duration: z.number().int().positive().describe('update_clip only: new duration in ms'),
+    question: z
+      .union([question, questionPatch])
+      .describe(
+        'question clips: a complete question (add_clip; or update_clip to replace it), or a patch of some fields (update_clip)',
+      ),
   })
   .partial()
   .strict();
@@ -136,6 +268,7 @@ const clipType = z.enum([
   'audio',
   'highlight',
   'progress',
+  'question',
 ]);
 
 // --- Helpers -------------------------------------------------------------------------
@@ -161,7 +294,7 @@ function defined<T extends object>(value: T): Defined<T> {
 
 export const SERVER_INSTRUCTIONS = `Clipcourse builds e-learning courses on a timeline and exports them as SCORM packages.
 A course has chapters; each chapter has its own timeline (starting at 0 ms) with tracks and clips.
-Typical workflow: list_projects or create_project → get_course (outline) → add_chapter / add_clip / update_clip → review_course → export_scorm.
+Typical workflow: list_projects or create_project → get_course (outline) → add_chapter / add_clip / update_clip → questions (add_clip type question, set_quiz, add_quiz_question, set_assessment) → review_course → export_scorm.
 All times are milliseconds, all positions are stage pixels (default stage 1920×1080). Clips on one track never overlap; the server moves them to the nearest free spot.
 Every change is saved immediately and can be undone with undo. Read clipcourse://format/guide for the course format.`;
 
@@ -426,6 +559,92 @@ export function createServer(options: ServerOptions): McpServer {
     true,
   );
 
+  // --- Quizzes and scoring ----------------------------------------------------------------
+
+  op(
+    'set_assessment',
+    'Sets the passing score of the course (percent of the points of all scored questions). The LMS then gets passed/failed once all scored questions are answered. null removes it (the LMS still gets the score).',
+    {
+      passingScore: z.number().min(0).max(100).nullable().describe('0–100, or null to remove'),
+    },
+    (a) => ({ op: 'set_assessment', passingScore: a.passingScore }),
+  );
+
+  op(
+    'set_quiz',
+    'Turns a chapter into a quiz chapter (questions one after another, then a result; no timeline playback) or changes its settings. A new quiz gets one sample question; replace it with update_quiz_question or add more with add_quiz_question. enabled=false turns it back into a normal chapter.',
+    {
+      chapterId: id('chapter'),
+      enabled: z.boolean().optional().describe('false removes the quiz and its questions'),
+      shuffle: z.boolean().optional().describe('show the questions in a shuffled order'),
+      retries: z
+        .number()
+        .int()
+        .min(0)
+        .max(20)
+        .optional()
+        .describe('how often the learner may restart the whole quiz (default 0)'),
+    },
+    (a) => ({
+      op: 'set_quiz',
+      chapterId: a.chapterId,
+      ...defined({ enabled: a.enabled, shuffle: a.shuffle, retries: a.retries }),
+    }),
+    false,
+  );
+
+  op(
+    'add_quiz_question',
+    'Adds a question to a quiz chapter (see set_quiz).',
+    {
+      chapterId: id('chapter'),
+      question,
+      index: z.number().int().min(0).optional().describe('position, default: at the end'),
+    },
+    (a) => ({
+      op: 'add_quiz_question',
+      chapterId: a.chapterId,
+      question: { ...a.question, id: a.question.id ?? '' } as never,
+      ...defined({ index: a.index }),
+    }),
+  );
+
+  op(
+    'update_quiz_question',
+    'Changes a question of a quiz chapter. Give the fields to change; a complete question with another kind replaces it.',
+    {
+      chapterId: id('chapter'),
+      questionId: id('question'),
+      props: questionPatch,
+    },
+    (a) => ({
+      op: 'update_quiz_question',
+      chapterId: a.chapterId,
+      questionId: a.questionId,
+      props: a.props,
+    }),
+  );
+
+  op(
+    'move_quiz_question',
+    'Moves a question within its quiz (0 = first).',
+    { chapterId: id('chapter'), questionId: id('question'), index: z.number().int().min(0) },
+    (a) => ({
+      op: 'move_quiz_question',
+      chapterId: a.chapterId,
+      questionId: a.questionId,
+      index: a.index,
+    }),
+  );
+
+  op(
+    'delete_quiz_question',
+    'Deletes a question from a quiz (a quiz keeps at least one question).',
+    { chapterId: id('chapter'), questionId: id('question') },
+    (a) => ({ op: 'delete_quiz_question', chapterId: a.chapterId, questionId: a.questionId }),
+    true,
+  );
+
   // --- Tracks ------------------------------------------------------------------------
 
   op(
@@ -480,7 +699,7 @@ export function createServer(options: ServerOptions): McpServer {
   op(
     'add_clip',
     [
-      'Adds a clip. Types: text, box (filled box with optional text), shape (rect/ellipse/line/arrow), image/video/audio (need assetId from import_media), highlight (marker/frame/arrow/spotlight), progress (course progress bar).',
+      'Adds a clip. Types: text, box (filled box with optional text), shape (rect/ellipse/line/arrow), image/video/audio (need assetId from import_media), highlight (marker/frame/arrow/spotlight), progress (course progress bar), question (playback stops at its start until the learner answers; give props.question, otherwise a sample single-choice question is used).',
       'Without trackId the clip goes to the front-most track of the chapter that has room at "start" (a new track is created if needed).',
       'Defaults are sensible (centered frame, readable text); override with props.',
     ].join(' '),
