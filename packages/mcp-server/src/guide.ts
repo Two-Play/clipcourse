@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Short guide to the course format, served as an MCP resource. */
-export const FORMAT_GUIDE = `# Clipcourse course format (version 3)
+export const FORMAT_GUIDE = `# Clipcourse course format (version 4)
 
 ## Structure
 - A **course** has a title, a language, a **stage** (logical size, default 1920×1080, scaled to fit the screen) and **chapters**.
@@ -24,6 +24,7 @@ export const FORMAT_GUIDE = `# Clipcourse course format (version 3)
 | highlight | kind (marker/frame/arrow/spotlight), color, strokeWidth, radius, pulse, label |
 | progress | fill, background, radius (course progress bar) |
 | question | question (see below); playback stops at the clip's start until the learner answers |
+| button | text, action (required), fill, stroke, radius, style |
 
 Every visual clip can have animations: { in: {type, duration}, out: {type, duration} } with type fade, slide (direction) or zoom.
 
@@ -40,6 +41,22 @@ Every visual clip can have animations: { in: {type, duration}, out: {type, durat
 - Write one clear question per item, plausible wrong answers of similar length, and feedback that teaches
   (why the answer is right or wrong). Hotspot questions need area labels and alt text: keyboard and screen
   reader users answer by choosing a labelled area.
+
+## Interactions and branching
+- **Buttons** and any other visual clip (except questions) can have a click **action**:
+  goToChapter, goToMarker (both start playing there), openPopup, setClipVisibility (show, hide or
+  toggle a clip, optionally pausing), openUrl (http(s) or mailto, new window).
+- Clips with \`startsHidden: true\` appear only after a setClipVisibility action shows them
+  (e.g. "Show the answer"). What the learner revealed is kept in the bookmark.
+- Clickable clips need a name for screen readers: the button text, the clip's text or alt text,
+  or \`actionLabel\` (say what the click does).
+- **Popups** (add_popup) hold extra information: title, text and an optional image.
+- **Glossary** (add_glossary_entry): the player marks the first occurrence of each term in every
+  text clip; learners click it for the explanation. Terms are also listed in the table of contents.
+- **Branching**: put buttons at the end of a chapter (clips that reach the chapter end stay
+  visible while the player waits for Continue). Mark side branches optional, or use the completion
+  rule "goal" (set_completion) and mark the end chapters as goals.
+- Deleting a chapter, marker, popup or clip that a click action uses is refused; change the action first.
 
 ## Good practice
 - Learners must be able to read text: show it for at least 1 s plus 0.4 s per word.

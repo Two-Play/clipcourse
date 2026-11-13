@@ -66,14 +66,18 @@ describe('tools', () => {
     expect(names).toEqual([
       'add_chapter',
       'add_clip',
+      'add_glossary_entry',
       'add_marker',
+      'add_popup',
       'add_quiz_question',
       'add_track',
       'create_project',
       'delete_chapter',
       'delete_clips',
+      'delete_glossary_entry',
       'delete_marker',
       'delete_media',
+      'delete_popup',
       'delete_quiz_question',
       'delete_track',
       'duplicate_chapter',
@@ -89,6 +93,7 @@ describe('tools', () => {
       'redo',
       'review_course',
       'set_assessment',
+      'set_completion',
       'set_course',
       'set_quiz',
       'split_clip',
@@ -96,8 +101,10 @@ describe('tools', () => {
       'undo',
       'update_chapter',
       'update_clip',
+      'update_glossary_entry',
       'update_marker',
       'update_media',
+      'update_popup',
       'update_quiz_question',
       'update_track',
     ]);
@@ -291,6 +298,117 @@ describe('tools', () => {
     const exported = await call('export_scorm', { project: 'quiz', version: '2004' });
     const files = unzipSync(readFileSync(join(root, exported.file)));
     expect(strFromU8(files['course.js']!)).toContain('"passingScore":75');
+  });
+
+  test('builds a branching course with buttons, a reveal, a popup and a glossary', async () => {
+    const { chapterId: intro } = await call('create_project', { path: 'branch', title: 'Branch' });
+    const basics = (await call('add_chapter', { project: 'branch', title: 'Basics' })).created
+      .chapterId as string;
+    const advanced = (await call('add_chapter', { project: 'branch', title: 'Advanced' })).created
+      .chapterId as string;
+    await call('update_chapter', { project: 'branch', chapterId: basics, optional: true });
+    const popup = (
+      await call('add_popup', { project: 'branch', title: 'Why two paths?', text: 'Pick yours.' })
+    ).created.popupId as string;
+    await call('add_glossary_entry', {
+      project: 'branch',
+      term: 'branch',
+      definition: 'One of several ways through the course.',
+    });
+    await call('add_clip', {
+      project: 'branch',
+      type: 'text',
+      chapterId: intro,
+      start: 0,
+      duration: 4000,
+      props: { text: 'Choose a branch', role: 'heading' },
+    });
+    for (const [text, target] of [
+      ['Basics', basics],
+      ['Advanced', advanced],
+    ] as const) {
+      await call('add_clip', {
+        project: 'branch',
+        type: 'button',
+        chapterId: intro,
+        start: 0,
+        duration: 4000,
+        props: { text, action: { type: 'goToChapter', chapterId: target } },
+      });
+    }
+    const answer = (
+      await call('add_clip', {
+        project: 'branch',
+        type: 'text',
+        chapterId: intro,
+        start: 0,
+        duration: 4000,
+        props: { text: 'Both paths end with a summary.', startsHidden: true },
+      })
+    ).created.clipId as string;
+    const reveal = (
+      await call('add_clip', {
+        project: 'branch',
+        type: 'box',
+        chapterId: intro,
+        start: 0,
+        duration: 4000,
+        props: {
+          text: 'Help',
+          action: { type: 'setClipVisibility', clipId: answer, visible: 'toggle', pause: true },
+        },
+      })
+    ).created.clipId as string;
+    await call('update_clip', {
+      project: 'branch',
+      clipId: reveal,
+      props: { action: { type: 'openPopup', popupId: popup }, actionLabel: 'Why two paths?' },
+    });
+
+    // References are protected and links are restricted.
+    await expect(call('delete_popup', { project: 'branch', popupId: popup })).rejects.toThrow(
+      /target of "Help"/,
+    );
+    await expect(call('delete_chapter', { project: 'branch', chapterId: basics })).rejects.toThrow(
+      /Chapter "Basics" is the target/,
+    );
+    await expect(
+      call('update_clip', {
+        project: 'branch',
+        clipId: reveal,
+        props: { action: { type: 'openUrl', url: 'javascript:alert(1)' } },
+      }),
+    ).rejects.toThrow();
+
+    const outline = (await call('get_course', { project: 'branch' })).text as string;
+    expect(outline).toContain('Chapter 2 "Basics"');
+    expect(outline).toMatch(/Basics" \{[^}]+\}, 10\.0s, at the end: wait for Continue, optional/);
+    expect(outline).toContain(`button "Advanced" on click: go to chapter "Advanced" {${advanced}}`);
+    expect(outline).toContain('(starts hidden)');
+    expect(outline).toContain(`on click: open popup "Why two paths?" {${popup}}`);
+    expect(outline).toContain('Glossary:\n  branch: One of several ways through the course.');
+
+    let review = await call('review_course', { project: 'branch' });
+    expect(review.issues.map((i: { code: string }) => i.code)).toEqual(
+      expect.arrayContaining(['empty-chapter']),
+    );
+    expect(review.issues.map((i: { code: string }) => i.code)).not.toContain(
+      'clickable-without-name',
+    );
+    await call('update_clip', {
+      project: 'branch',
+      clipId: reveal,
+      props: { actionLabel: null, text: '' },
+    });
+    review = await call('review_course', { project: 'branch' });
+    expect(review.issues.map((i: { code: string }) => i.code)).toContain('clickable-without-name');
+
+    await call('set_completion', { project: 'branch', mode: 'goal' });
+    await call('update_chapter', { project: 'branch', chapterId: advanced, goal: true });
+    const saved = JSON.parse(readFileSync(join(root, 'branch', 'course.json'), 'utf8'));
+    expect(saved.completion).toEqual({ mode: 'goal' });
+    expect(saved.chapters[2].goal).toBe(true);
+    expect(saved.glossary[0].term).toBe('branch');
   });
 
   test('undo reverts the last change on disk', async () => {

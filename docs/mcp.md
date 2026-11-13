@@ -81,19 +81,20 @@ works on a connected editor; give it an `outputPath` inside a root folder.
 
 ## Tools
 
-| Area     | Tools                                                                                                                                               |
-| -------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Projects | `list_projects`, `create_project`, `get_course` (outline or JSON), `set_course`, `list_templates`                                                   |
-| Live     | `pair_editor` (with `--bridge`)                                                                                                                     |
-| Chapters | `add_chapter` (optionally from a template), `update_chapter`, `move_chapter`, `duplicate_chapter`, `delete_chapter`                                 |
-| Markers  | `add_marker`, `update_marker`, `delete_marker`                                                                                                      |
-| Tracks   | `add_track` (chapter or course layer), `update_track`, `delete_track`                                                                               |
-| Clips    | `add_clip`, `update_clip`, `move_clip`, `trim_clip`, `split_clip`, `duplicate_clip`, `delete_clips`                                                 |
-| Quizzes  | `add_clip` type `question`, `set_quiz`, `add_quiz_question`, `update_quiz_question`, `move_quiz_question`, `delete_quiz_question`, `set_assessment` |
-| Media    | `import_media` (local file inside a root, or download from an http(s) URL), `update_media`, `delete_media`                                          |
-| Review   | `review_course`: validity, alt text, captions, contrast, font size, reading time, structure, scoring                                                |
-| History  | `undo`, `redo`                                                                                                                                      |
-| Export   | `export_scorm` (SCORM 1.2 or 2004)                                                                                                                  |
+| Area         | Tools                                                                                                                                                                               |
+| ------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Projects     | `list_projects`, `create_project`, `get_course` (outline or JSON), `set_course`, `list_templates`                                                                                   |
+| Live         | `pair_editor` (with `--bridge`)                                                                                                                                                     |
+| Chapters     | `add_chapter` (optionally from a template), `update_chapter`, `move_chapter`, `duplicate_chapter`, `delete_chapter`                                                                 |
+| Markers      | `add_marker`, `update_marker`, `delete_marker`                                                                                                                                      |
+| Tracks       | `add_track` (chapter or course layer), `update_track`, `delete_track`                                                                                                               |
+| Clips        | `add_clip`, `update_clip`, `move_clip`, `trim_clip`, `split_clip`, `duplicate_clip`, `delete_clips`                                                                                 |
+| Quizzes      | `add_clip` type `question`, `set_quiz`, `add_quiz_question`, `update_quiz_question`, `move_quiz_question`, `delete_quiz_question`, `set_assessment`                                 |
+| Media        | `import_media` (local file inside a root, or download from an http(s) URL), `update_media`, `delete_media`                                                                          |
+| Interactions | `add_clip` type `button`, `props.action` on any visual clip, `add/update/delete_popup`, `add/update/delete_glossary_entry`, `set_completion`, `update_chapter` (`optional`, `goal`) |
+| Review       | `review_course`: validity, alt text, captions, contrast, font size, reading time, structure, scoring                                                                                |
+| History      | `undo`, `redo`                                                                                                                                                                      |
+| Export       | `export_scorm` (SCORM 1.2 or 2004)                                                                                                                                                  |
 
 Example prompt: _"Add a quiz chapter at the end with five questions about
 chapter 2 (mixed kinds), one retry, and a passing score of 80 %."_ The

@@ -9,8 +9,9 @@
  * Quiz chapters have no running timeline (status "quiz"); they count as
  * seen when all their questions are done.
  */
-import type { Course, Question } from '@clipcourse/format';
+import type { Clip, ClipAction, Course, Question } from '@clipcourse/format';
 import { clampTime } from './evaluate.js';
+import { isClipShown, isCourseComplete } from './interactions.js';
 import type { Progress } from './progress.js';
 import {
   answer,
@@ -43,8 +44,10 @@ export interface PlayerState {
   status: PlaybackStatus;
   /** One entry per chapter: has the learner played it to the end? */
   seen: readonly boolean[];
-  /** All chapters seen. */
+  /** The completion rule is met (by default: all required chapters seen). */
   complete: boolean;
+  /** Clip visibility changed by the learner, by clip id. */
+  visibility: Readonly<Record<string, boolean>>;
   /** The question clip playback is stopped at (status "question"). */
   questionClipId: string | null;
   /** Answers by question id. */
@@ -75,6 +78,8 @@ export class Controller {
   private answers: Record<string, AnswerState> = {};
   private quizRetries: Record<number, number> = {};
   private questionClipId: string | null = null;
+  private visibility: Record<string, boolean> = {};
+  private clipsById = new Map<string, Clip>();
   private listeners = new Set<ControllerListener>();
   private pending: ControllerEvent[] = [];
   private byId: Map<string, QuestionRef>;
@@ -85,7 +90,17 @@ export class Controller {
     this.questions = collectQuestions(course);
     this.byId = new Map(this.questions.map((ref) => [ref.question.id, ref]));
     this.seen = course.chapters.map(() => false);
+    for (const track of [
+      ...(course.courseLayer?.background ?? []),
+      ...(course.courseLayer?.foreground ?? []),
+      ...course.chapters.flatMap((c) => c.tracks),
+    ]) {
+      for (const clip of track.clips) this.clipsById.set(clip.id, clip);
+    }
     if (progress) {
+      for (const [id, shown] of Object.entries(progress.visibility ?? {})) {
+        if (this.clipsById.has(id)) this.visibility[id] = shown;
+      }
       this.seen = course.chapters.map((_, i) => progress.seen[i] === true);
       this.chapterIndex = Math.min(Math.max(progress.chapterIndex, 0), course.chapters.length - 1);
       this.time = clampTime(this.chapter, progress.time);
@@ -116,7 +131,8 @@ export class Controller {
       time: this.time,
       status: this.status,
       seen: [...this.seen],
-      complete: this.seen.every(Boolean),
+      complete: isCourseComplete(this.course, this.seen),
+      visibility: { ...this.visibility },
       questionClipId: this.questionClipId,
       answers: { ...this.answers },
       quizRetries: { ...this.quizRetries },
@@ -135,6 +151,7 @@ export class Controller {
       seen: [...this.seen],
       answers,
       quizRetries: { ...this.quizRetries },
+      visibility: { ...this.visibility },
     };
   }
 
@@ -304,6 +321,51 @@ export class Controller {
     return true;
   }
 
+  /** Shows, hides or toggles a clip (setClipVisibility action). */
+  setClipVisibility(clipId: string, mode: 'show' | 'hide' | 'toggle'): void {
+    const clip = this.clipsById.get(clipId);
+    if (!clip) return;
+    const current = isClipShown(clip, this.visibility);
+    const next = mode === 'toggle' ? !current : mode === 'show';
+    if (next === current) return;
+    this.visibility[clipId] = next;
+    this.flush();
+  }
+
+  /**
+   * Runs the parts of a click action that change playback: jumps (which
+   * start playing the target, since the learner asked for it) and show/hide.
+   * Popups and links are up to the owner. Returns false for unknown targets.
+   */
+  runAction(action: ClipAction): boolean {
+    switch (action.type) {
+      case 'goToChapter':
+      case 'goToMarker': {
+        const index = this.course.chapters.findIndex((c) => c.id === action.chapterId);
+        if (index < 0) return false;
+        let time = 0;
+        if (action.type === 'goToMarker') {
+          const marker = this.course.chapters[index]!.markers?.find(
+            (m) => m.id === action.markerId,
+          );
+          if (!marker) return false;
+          time = marker.time;
+        }
+        this.setChapter(index, time);
+        if (!this.chapter.quiz) this.status = 'playing';
+        this.flush();
+        return true;
+      }
+      case 'setClipVisibility':
+        if (!this.clipsById.has(action.clipId)) return false;
+        if (action.pause) this.pause();
+        this.setClipVisibility(action.clipId, action.visible);
+        return true;
+      default:
+        return true;
+    }
+  }
+
   questionForClip(clipId: string): QuestionRef | null {
     return this.questions.find((ref) => ref.clipId === clipId) ?? null;
   }
@@ -334,10 +396,11 @@ export class Controller {
 
   private markSeen(index: number) {
     if (this.seen[index]) return;
-    const wasComplete = this.seen.every(Boolean);
+    const wasComplete = isCourseComplete(this.course, this.seen);
     this.seen[index] = true;
     this.pending.push({ type: 'chapterseen', chapterIndex: index });
-    if (!wasComplete && this.seen.every(Boolean)) this.pending.push({ type: 'complete' });
+    if (!wasComplete && isCourseComplete(this.course, this.seen))
+      this.pending.push({ type: 'complete' });
   }
 
   private flush() {

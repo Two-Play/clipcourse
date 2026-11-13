@@ -8,7 +8,7 @@ import { createLmsRecord, createMockScorm12, createMockScorm2004 } from '../src/
 
 const frame = { x: 0, y: 0, width: 10, height: 10 };
 const course: Course = {
-  formatVersion: 3,
+  formatVersion: 4,
   id: 'c',
   title: 'C',
   language: 'en',

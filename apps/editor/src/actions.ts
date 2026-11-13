@@ -2,6 +2,7 @@
 /** Editor operations shared by toolbar, timeline, shortcuts and drops. */
 import {
   addChapter,
+  addPopup,
   addClip,
   addCourseTrack,
   instantiateTemplate,
@@ -49,6 +50,7 @@ export function addClipAt(
     ...(options.assetId ? { assetId: options.assetId } : {}),
     ...(asset ? { asset } : {}),
     ...(options.questionKind ? { questionKind: options.questionKind } : {}),
+    chapterId: chapter.id,
   });
 
   if (options.trackId && findTrack(state.course, options.trackId)?.scope.kind === 'course') {
@@ -108,6 +110,8 @@ function defaultTrackName(type: ClipType): string {
       return 'Images';
     case 'question':
       return 'Questions';
+    case 'button':
+      return 'Buttons';
     default:
       return 'Text';
   }
@@ -116,7 +120,7 @@ function defaultTrackName(type: ClipType): string {
 export function deleteSelection(session: EditorSession) {
   const { selection } = session.store.getState();
   if (selection.length === 0) return;
-  session.store.getState().execute('Delete', removeClips(selection), { select: [] });
+  session.run('Delete', removeClips(selection), { select: [] });
 }
 
 export function splitSelectionAtPlayhead(session: EditorSession) {
@@ -182,6 +186,7 @@ export function insertTemplate(session: EditorSession, template: ChapterTemplate
   session.addFiles(result.files);
   store.getState().execute(`Add chapter “${result.chapter.title}”`, (draft) => {
     Object.assign(draft.assets, result.assets);
+    for (const popup of result.popups) addPopup(popup)(draft);
     addChapter(result.chapter, index)(draft);
   });
   store.getState().setChapter(result.chapter.id);

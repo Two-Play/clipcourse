@@ -1,6 +1,15 @@
 // SPDX-License-Identifier: MIT
 /** Creates DOM elements for clips. Only plain text is ever inserted. */
-import type { Asset, Clip, Frame, ImageFit, TextStyle, VisualClip } from '@clipcourse/format';
+import type {
+  Asset,
+  Clip,
+  Frame,
+  GlossaryEntry,
+  ImageFit,
+  TextStyle,
+  VisualClip,
+} from '@clipcourse/format';
+import type { TextPart } from '../core/interactions.js';
 
 export type AssetResolver = (asset: Asset, assetId: string) => string;
 
@@ -13,6 +22,62 @@ export interface ClipView {
   media: HTMLMediaElement | null;
 }
 
+export interface ClipViewExtras {
+  /** Makes buttons and clickable clips work; without it they are static (editor). */
+  onAction?: (clip: VisualClip, trigger: HTMLElement) => void;
+  /** Marks glossary terms in text. */
+  glossary?: ((text: string) => TextPart[]) | null;
+  /** Opens a glossary term; without it terms are only underlined. */
+  onTerm?: (entry: GlossaryEntry, trigger: HTMLElement) => void;
+  /** Read after the label of buttons that open a new window. */
+  newWindowHint?: string;
+}
+
+/** Accessible name of a clickable clip. */
+export function actionLabel(clip: VisualClip, assets: Record<string, Asset>): string {
+  if (clip.actionLabel) return clip.actionLabel;
+  switch (clip.type) {
+    case 'button':
+    case 'text':
+      return clip.text;
+    case 'box':
+      return clip.text ?? '';
+    case 'image':
+      return clip.alt ?? assets[clip.assetId]?.alt ?? '';
+    case 'highlight':
+      return clip.label ?? '';
+    default:
+      return '';
+  }
+}
+
+/** Plain text with glossary terms as buttons (or underlined spans when static). */
+function fillText(doc: Document, el: HTMLElement, text: string, extras: ClipViewExtras) {
+  if (!extras.glossary) {
+    el.textContent = text;
+    return;
+  }
+  for (const part of extras.glossary(text)) {
+    if (typeof part === 'string') {
+      el.append(doc.createTextNode(part));
+      continue;
+    }
+    const term = doc.createElement(extras.onTerm ? 'button' : 'span');
+    term.className = 'ccp-term';
+    term.textContent = part.text;
+    if (term instanceof HTMLButtonElement) {
+      term.type = 'button';
+      term.setAttribute('aria-haspopup', 'dialog');
+      const { entry } = part;
+      term.addEventListener('click', (event) => {
+        event.stopPropagation();
+        extras.onTerm!(entry, term);
+      });
+    }
+    el.append(term);
+  }
+}
+
 export function createClipView(
   doc: Document,
   clip: Clip,
@@ -20,7 +85,11 @@ export function createClipView(
   resolve: AssetResolver,
   /** Returns an existing media element with this source to reuse, if any. */
   reuseMedia: (tag: 'video' | 'audio', src: string) => HTMLMediaElement | null = () => null,
+  extras: ClipViewExtras = {},
 ): ClipView {
+  // Text inside a clickable clip is part of its button: no nested term buttons.
+  const textExtras: ClipViewExtras =
+    clip.type !== 'audio' && clip.action ? { ...extras, glossary: null } : extras;
   const mediaElement = (tag: 'video' | 'audio', assetId: string) => {
     const asset = assets[assetId];
     const src = asset ? resolve(asset, assetId) : '';
@@ -59,8 +128,26 @@ export function createClipView(
     case 'text': {
       const el = doc.createElement(clip.role === 'heading' ? 'h2' : 'p');
       el.className = 'ccp-text';
-      el.textContent = clip.text;
+      fillText(doc, el, clip.text, textExtras);
       applyTextStyle(root, el, clip.style);
+      root.append(el);
+      break;
+    }
+    case 'button': {
+      const el = doc.createElement(extras.onAction ? 'button' : 'div');
+      el.className = 'ccp-button';
+      if (el instanceof HTMLButtonElement) el.type = 'button';
+      applyBoxStyle(el, clip.fill ?? '#4f8cff', clip.stroke, clip.strokeWidth, clip.radius ?? 16);
+      const label = doc.createElement('span');
+      label.className = 'ccp-text';
+      label.textContent = clip.text;
+      applyTextStyle(el, label, {
+        align: 'center',
+        color: '#ffffff',
+        fontWeight: 600,
+        ...clip.style,
+      });
+      el.append(label);
       root.append(el);
       break;
     }
@@ -70,7 +157,7 @@ export function createClipView(
       if (clip.text) {
         const el = doc.createElement('p');
         el.className = 'ccp-text';
-        el.textContent = clip.text;
+        fillText(doc, el, clip.text, textExtras);
         applyTextStyle(root, el, clip.style);
         root.append(el);
       } else {
@@ -152,6 +239,30 @@ export function createClipView(
       root.append(video);
       media = video;
       break;
+    }
+  }
+
+  if (clip.action && clip.type !== 'question') {
+    root.classList.add('is-clickable');
+    const label = actionLabel(clip, assets);
+    const hint =
+      clip.action.type === 'openUrl' && extras.newWindowHint ? ` (${extras.newWindowHint})` : '';
+    if (clip.type === 'button') {
+      const el = root.firstElementChild as HTMLElement;
+      if (hint) el.setAttribute('aria-label', label + hint);
+      if (extras.onAction) el.addEventListener('click', () => extras.onAction!(clip, el));
+    } else if (extras.onAction) {
+      // A transparent button over the clip carries name, focus and click;
+      // the visual content is hidden from screen readers to avoid reading it twice.
+      for (const child of [...root.children]) child.setAttribute('aria-hidden', 'true');
+      const hit = doc.createElement('button');
+      hit.type = 'button';
+      hit.className = 'ccp-hit';
+      hit.setAttribute('aria-label', (label || clip.action.type) + hint);
+      if (clip.action.type === 'openPopup') hit.setAttribute('aria-haspopup', 'dialog');
+      hit.addEventListener('click', () => extras.onAction!(clip, hit));
+      root.removeAttribute('aria-hidden');
+      root.append(hit);
     }
   }
 

@@ -1,12 +1,13 @@
 // SPDX-License-Identifier: MIT
 /**
  * Runs a course inside an LMS: creates the player, keeps the bookmark in
- * suspend data and reports completion once every chapter has been seen.
+ * suspend data and reports completion by the course's completion rule.
  * Without an LMS, progress is kept in localStorage.
  */
 import type { Course } from '@clipcourse/format';
 import {
   createLocalStorageStore,
+  courseProgressMeasure,
   createPlayer,
   decodeProgress,
   type Player,
@@ -59,12 +60,12 @@ export function createLmsStore(
     load: () => lms.getSuspendData() || null,
     save(value) {
       const progress = decodeProgress(value, course.chapters.length);
-      const seen = progress ? progress.seen.filter(Boolean).length : 0;
       const chapter = progress ? course.chapters[progress.chapterIndex] : undefined;
       lms.saveProgress({
         suspendData: value,
         location: chapter?.id ?? '',
-        progress: course.chapters.length ? seen / course.chapters.length : 0,
+        // Optional chapters do not count; with the goal rule a goal counts as done.
+        progress: progress ? courseProgressMeasure(course, progress.seen) : 0,
       });
       pending = true;
       if (now() - lastCommit >= COMMIT_INTERVAL) commit();

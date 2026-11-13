@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 /**
- * Clipcourse course format, version 3.
+ * Clipcourse course format, version 4.
  *
  * Version history:
  * - 1: courses, chapters, tracks, clips (image, text, shape, box, video,
@@ -10,6 +10,10 @@
  *      once its version number is raised.
  * - 3: questions (question clips that pause the timeline, quiz chapters)
  *      and course assessment (passing score). Additive as well.
+ * - 4: interactions: button clips and click actions on visual clips
+ *      (jump to a chapter or marker, open a popup, show/hide a clip, open a
+ *      link), clips that start hidden, popups, a glossary, and a completion
+ *      rule with optional and goal chapters for branching. Additive.
  *
  * Conventions:
  * - All times and durations are integer milliseconds.
@@ -18,7 +22,7 @@
  * - Track order is the stacking order: `tracks[0]` is the back-most layer.
  */
 
-export const FORMAT_VERSION = 3 as const;
+export const FORMAT_VERSION = 4 as const;
 
 export interface Course {
   formatVersion: typeof FORMAT_VERSION;
@@ -35,6 +39,12 @@ export interface Course {
   chapters: Chapter[];
   /** Scoring of the course's questions; without it, questions are practice only. */
   assessment?: Assessment;
+  /** When the course counts as completed. Default: all required chapters seen. */
+  completion?: CompletionRule;
+  /** Info windows opened by click actions. */
+  popups?: Popup[];
+  /** Terms explained to the learner; the player marks them in text clips. */
+  glossary?: GlossaryEntry[];
   /**
    * Namespaced data for features that are not part of the core format yet
    * (e.g. quizzes). Keys should be reverse-DNS or package names. Players
@@ -94,6 +104,10 @@ export interface Chapter {
   /** Jump points inside the chapter, shown in the table of contents. */
   markers?: Marker[];
   tracks: Track[];
+  /** Not needed for completion (rule "required"); for side branches and extras. */
+  optional?: boolean;
+  /** Reaching the end of this chapter completes the course (rule "goal"). */
+  goal?: boolean;
   /**
    * Makes this a quiz chapter: the player shows the questions one after
    * another (over the chapter's tracks at time 0) instead of playing the
@@ -101,6 +115,48 @@ export interface Chapter {
    */
   quiz?: Quiz;
 }
+
+export type CompletionRule =
+  /** All chapters that are not optional have been seen (default). */
+  | { mode: 'required' }
+  /** At least one goal chapter has been seen. */
+  | { mode: 'goal' };
+
+export interface Popup {
+  id: string;
+  title: string;
+  /** Plain text, line breaks kept. */
+  text: string;
+  /** Optional image shown above the text. */
+  assetId?: string;
+  /** Overrides the image asset's alt text. */
+  alt?: string;
+}
+
+export interface GlossaryEntry {
+  id: string;
+  term: string;
+  /** Other forms marked as this term, e.g. plural. */
+  variants?: string[];
+  definition: string;
+}
+
+/** What happens when the learner activates a clickable clip. */
+export type ClipAction =
+  | { type: 'goToChapter'; chapterId: string }
+  | { type: 'goToMarker'; chapterId: string; markerId: string }
+  | { type: 'openPopup'; popupId: string }
+  /** Changes whether a clip is shown; the state is kept in the learner's progress. */
+  | {
+      type: 'setClipVisibility';
+      clipId: string;
+      visible: 'show' | 'hide' | 'toggle';
+      pause?: boolean;
+    }
+  /** Opens an http(s) or mailto link in a new window. */
+  | { type: 'openUrl'; url: string };
+
+export type ClipActionType = ClipAction['type'];
 
 export interface Assessment {
   /** Percentage (0–100) of the scored points needed to pass. */
@@ -228,6 +284,12 @@ interface VisualClipBase extends ClipBase {
   opacity?: number;
   /** Entrance and exit animations. */
   animations?: ClipAnimations;
+  /** Makes the clip clickable (not for question clips). */
+  action?: ClipAction;
+  /** Accessible name of a clickable clip; defaults to its text or alt text. */
+  actionLabel?: string;
+  /** Not shown until a setClipVisibility action shows it. */
+  startsHidden?: boolean;
 }
 
 export type AnimationType = 'fade' | 'slide' | 'zoom';
@@ -369,8 +431,21 @@ export interface QuestionClip extends VisualClipBase {
   question: Question;
 }
 
+/** A labelled button that runs an action. */
+export interface ButtonClip extends VisualClipBase {
+  type: 'button';
+  text: string;
+  action: ClipAction;
+  style?: TextStyle;
+  fill?: string;
+  stroke?: string;
+  strokeWidth?: number;
+  radius?: number;
+}
+
 export type VisualClip =
   | ImageClip
+  | ButtonClip
   | TextClip
   | ShapeClip
   | BoxClip

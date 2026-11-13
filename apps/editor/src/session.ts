@@ -10,7 +10,9 @@ import {
   prepareAsset,
   uniqueIdFactory,
   type EditorStore,
+  type ExecuteOptions,
   type Project,
+  type Recipe,
   type ProjectStorage,
 } from '@clipcourse/editor-core';
 import type { Asset, Course } from '@clipcourse/format';
@@ -106,6 +108,31 @@ export class EditorSession {
   }
 
   resolveAsset = (asset: Asset) => this.urls.get(asset);
+
+  private noticeListeners = new Set<(message: string) => void>();
+
+  /**
+   * Runs an editing command; if it refuses (e.g. deleting a chapter that a
+   * button still points to), the reason is shown as a notice instead of
+   * failing silently. Returns true if the course changed.
+   */
+  run(label: string, recipe: Recipe, options?: ExecuteOptions): boolean {
+    try {
+      return this.store.getState().execute(label, recipe, options);
+    } catch (error) {
+      this.notify(error instanceof Error ? error.message : String(error));
+      return false;
+    }
+  }
+
+  notify(message: string) {
+    for (const l of this.noticeListeners) l(message);
+  }
+
+  subscribeNotices(listener: (message: string) => void) {
+    this.noticeListeners.add(listener);
+    return () => this.noticeListeners.delete(listener);
+  }
 
   /** Adds media files (e.g. from a template). */
   addFiles(files: Map<string, Uint8Array>) {

@@ -13,10 +13,10 @@ your LMS. In the editor, click **Export SCORM…** and pick a version.
 | Information                            | SCORM 1.2                                                                                      | SCORM 2004                                                                    |
 | -------------------------------------- | ---------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------- |
 | Started                                | `cmi.core.lesson_status = incomplete`                                                          | `cmi.completion_status = incomplete`                                          |
-| Completed (all chapters seen)          | `cmi.core.lesson_status = completed`                                                           | `cmi.completion_status = completed`                                           |
+| Completed (by the completion rule)     | `cmi.core.lesson_status = completed`                                                           | `cmi.completion_status = completed`                                           |
 | Progress                               | –                                                                                              | `cmi.progress_measure` (seen chapters / all)                                  |
 | Bookmark (current chapter)             | `cmi.core.lesson_location` (chapter id)                                                        | `cmi.location` (chapter id)                                                   |
-| Resume data                            | `cmi.suspend_data` (chapter, position, seen chapters; < 100 characters even for 200 chapters)  | same                                                                          |
+| Resume data                            | `cmi.suspend_data` (chapter, position, seen chapters, answers, revealed clips; compact)        | same                                                                          |
 | Time spent                             | `cmi.core.session_time`                                                                        | `cmi.session_time`                                                            |
 | Exit                                   | `cmi.core.exit = suspend` (set at start, so it survives a lost final call)                     | `cmi.exit = suspend`                                                          |
 | Score (courses with questions)         | `cmi.core.score.raw` (0–100, percent of all scored points), `min` 0, `max` 100                 | `cmi.score.raw`, `cmi.score.scaled` (0–1), `min`, `max`                       |
@@ -24,9 +24,22 @@ your LMS. In the editor, click **Export SCORM…** and pick a version.
 | Every answer                           | `cmi.interactions.n.*`: id, type, `student_response`, correct pattern, result, weighting, time | same with `learner_response`, `timestamp`, `description`                      |
 
 A chapter counts as seen when its timeline has played to the end. Seeking
-to the end does not count. The course is completed when all chapters have
-been seen. Completion is committed to the LMS immediately; the bookmark at
-least every 15 seconds, at every chapter end and when the learner leaves.
+to the end does not count. Completion is committed to the LMS immediately;
+the bookmark at least every 15 seconds, at every chapter end and when the
+learner leaves.
+
+The course's **completion rule** decides when it is completed:
+
+- _All chapters are seen (except optional ones)_, the default. Mark side
+  branches and extra material as optional; they do not count for completion
+  or progress.
+- _A goal chapter is reached_, for branching courses with several endings.
+  Mark the end chapters as goals; seeing any one of them completes the
+  course, and progress jumps to 100 %.
+
+Buttons that jump to chapters or markers, show/hide actions and popups need
+nothing from the LMS. Clips the learner revealed or hid are part of the
+resume data, so they look the same after a relaunch.
 
 Questions (question clips and quiz chapters) add a score. The score is the
 percentage of the points of all scored questions; practice questions

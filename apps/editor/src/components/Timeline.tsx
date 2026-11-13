@@ -33,6 +33,7 @@ import {
   EyeOff,
   Layers,
   Magnet,
+  MousePointerClick,
   Pause,
   Play,
   Rows3,
@@ -483,6 +484,16 @@ export function Timeline() {
                       onKeyDown={(e) => onClipKeyDown(e, clip)}
                     >
                       <span className="tl-clip-handle tl-clip-handle-start" aria-hidden="true" />
+                      {clip.type !== 'audio' && clip.action && (
+                        <MousePointerClick
+                          className="tl-clip-badge"
+                          size={12}
+                          aria-label={t('hasAction')}
+                        />
+                      )}
+                      {clip.type !== 'audio' && clip.startsHidden && (
+                        <EyeOff className="tl-clip-badge" size={12} aria-label={t('isHidden')} />
+                      )}
                       <span className="tl-clip-label">{clipLabel(clip, course)}</span>
                       <span className="tl-clip-handle tl-clip-handle-end" aria-hidden="true" />
                     </div>
@@ -546,10 +557,10 @@ interface TrackRow {
 }
 
 function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & { track: Track }) {
-  const { store } = useSession();
+  const session = useSession();
   const [editing, setEditing] = useState(false);
   const name = track.name ?? 'Track';
-  const exec = (label: string, recipe: Recipe) => store.getState().execute(label, recipe);
+  const exec = (label: string, recipe: Recipe) => session.run(label, recipe);
 
   return (
     <div className="tl-header">
@@ -655,7 +666,8 @@ function MarkerFlag({
   chapterId: string;
   timeAt: (clientX: number) => number;
 }) {
-  const { store } = useSession();
+  const session = useSession();
+  const { store } = session;
   const zoom = useEditor((s) => s.zoom);
 
   const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
@@ -701,7 +713,7 @@ function MarkerFlag({
         if (e.key === 'Delete' || e.key === 'Backspace') {
           e.preventDefault();
           e.stopPropagation();
-          store.getState().execute('Delete marker', removeMarker(chapterId, marker.id));
+          session.run('Delete marker', removeMarker(chapterId, marker.id));
         } else if (e.key === 'Enter' || e.key === 'F2') {
           e.preventDefault();
           rename();

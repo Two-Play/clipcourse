@@ -96,6 +96,16 @@ restored on the next start.
 - **Score the course** (course properties, with nothing selected) sets a
   passing score; the LMS then gets passed or failed. Every question can
   also be practice only ("Counts towards the score" off).
+- **Button** (Home or Insert) adds a button. Any visual clip can also be made
+  clickable under _On click_ in the properties: go to a chapter or marker
+  (branching), open a popup, show or hide another clip (e.g. "Show the
+  answer"; tick _Hidden until shown by a click_ on the answer), or open a link.
+- **Popups** and **Glossary** (left sidebar): popups hold extra information
+  for click actions; glossary terms are marked in text clips and explained
+  when the learner clicks them.
+- **Completed when** (course properties): all chapters except optional ones
+  are seen, or a goal chapter is reached. Mark chapters as optional or goal
+  in the chapter properties.
 - **Preview** plays the course in the real player. With _LMS simulation_
   it also shows what an LMS would store.
 - **Export SCORM…** creates a package for your LMS, see
@@ -132,7 +142,7 @@ create, review and export courses in project folders you allow. See
 
 ```jsonc
 {
-  "formatVersion": 3,
+  "formatVersion": 4,
   "id": "my_course",
   "title": "My course",
   "language": "en",
@@ -168,8 +178,8 @@ create, review and export courses in project folders you allow. See
 The full definition is in
 [`packages/format/src/types.ts`](packages/format/src/types.ts). There is also a
 generated JSON schema in
-[`packages/format/schema/course.v3.schema.json`](packages/format/schema/course.v3.schema.json).
-Older documents (version 1 and 2) are migrated automatically when opened.
+[`packages/format/schema/course.v4.schema.json`](packages/format/schema/course.v4.schema.json).
+Older documents (versions 1 to 3) are migrated automatically when opened.
 All times are integer milliseconds and all positions are logical stage
 pixels. The player scales the stage to fit and keeps its aspect ratio.
 

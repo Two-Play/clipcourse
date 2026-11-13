@@ -118,6 +118,29 @@ export const PLAYER_CSS = `
   background:var(--ccp-accent,#4f8cff);color:#fff}
 .ccp-q-submit:disabled{opacity:.4;cursor:default}
 .ccp-q-continue{background:#06d6a0;color:#0b0e15}
+.ccp-clip.is-clickable{overflow:visible}
+.ccp-stage .ccp-button{display:flex;flex-direction:column;justify-content:center;width:100%;height:100%;padding:0 24px;
+  margin:0;font:inherit;cursor:pointer;box-sizing:border-box}
+.ccp-stage div.ccp-button{cursor:default}
+.ccp-stage button.ccp-button:hover{filter:brightness(1.1)}
+.ccp-stage .ccp-hit{position:absolute;inset:0;width:100%;height:100%;margin:0;padding:0;border:0;background:transparent;cursor:pointer}
+.ccp-stage .ccp-hit:hover{background:rgba(255,255,255,.08)}
+.ccp-stage :is(.ccp-button,.ccp-hit):focus-visible{outline:6px solid #ffd166;outline-offset:4px}
+.ccp-stage .ccp-term{display:inline;margin:0;padding:0;border:0;background:none;font:inherit;color:inherit;
+  text-decoration:underline dotted;text-decoration-thickness:.08em;text-underline-offset:.15em;cursor:help}
+.ccp-stage .ccp-term:focus-visible{outline:4px solid #ffd166;outline-offset:2px}
+.ccp-dialog{position:absolute;inset:0;z-index:30;display:flex;align-items:center;justify-content:center;padding:16px;
+  background:rgba(0,0,0,.55)}
+.ccp-dialog-panel{max-width:min(640px,100%);max-height:100%;overflow:auto;padding:20px 24px;border-radius:12px;
+  background:#1b1f27;color:var(--ccp-fg,#f3f4f6);box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.ccp-dialog-head{display:flex;align-items:flex-start;gap:12px;justify-content:space-between}
+.ccp-dialog-title{margin:0;font-size:20px;line-height:1.3;text-transform:none}
+.ccp-dialog-image{display:block;max-width:100%;max-height:40vh;margin:12px 0 0;border-radius:8px}
+.ccp-dialog-text{margin:12px 0 0;font-size:16px;line-height:1.5;white-space:pre-wrap}
+.ccp-toc-glossary-title{margin:16px 10px 6px;font-size:14px;color:var(--ccp-muted)}
+.ccp-toc-glossary{margin:0 10px 12px}
+.ccp-toc-glossary dt{font-weight:600;margin-top:8px}
+.ccp-toc-glossary dd{margin:2px 0 0;color:var(--ccp-muted);font-size:13px}
 /* Host pages often style button:hover; keep question buttons readable. */
 :is(.ccp-root,.ccp-stage,.ccp-quiz) :is(.ccp-q-submit,.ccp-q-submit:hover:not(:disabled)){background:var(--ccp-accent,#4f8cff);color:#fff;border:0}
 :is(.ccp-root,.ccp-stage,.ccp-quiz) :is(.ccp-q-continue,.ccp-q-continue:hover:not(:disabled)){background:#06d6a0;color:#0b0e15;border:0}

@@ -2,7 +2,7 @@
 import * as v from 'valibot';
 import { CourseSchema } from './schema.js';
 import { migrateCourse, FormatVersionError } from './migrate.js';
-import type { Course, Question, Track } from './types.js';
+import type { Clip, ClipAction, Course, Question, Track } from './types.js';
 
 export interface ValidationIssue {
   /** JSON-pointer-like path, e.g. "/chapters/0/tracks/1/clips/2/assetId". */
@@ -210,6 +210,90 @@ function checkSemantics(course: Course, issues: ValidationIssue[], warnings: Val
         }
       }
     }
+  }
+
+  // Popups and glossary.
+  const popupIds = new Set<string>();
+  course.popups?.forEach((popup, i) => {
+    checkUnique(popupIds, popup.id, `/popups/${i}/id`, 'popup');
+    if (popup.assetId) checkAsset(popup.assetId, ['image'], `/popups/${i}/assetId`);
+  });
+  const glossaryIds = new Set<string>();
+  course.glossary?.forEach((entry, i) =>
+    checkUnique(glossaryIds, entry.id, `/glossary/${i}/id`, 'glossary entry'),
+  );
+
+  // Click actions point to things that exist.
+  const checkAction = (clip: Clip, action: ClipAction, path: string) => {
+    switch (action.type) {
+      case 'goToChapter':
+        if (!chapterIds.has(action.chapterId))
+          issues.push({
+            path,
+            message: `Clip "${clip.id}": unknown chapter "${action.chapterId}"`,
+          });
+        break;
+      case 'goToMarker': {
+        const chapter = course.chapters.find((c) => c.id === action.chapterId);
+        if (!chapter)
+          issues.push({
+            path,
+            message: `Clip "${clip.id}": unknown chapter "${action.chapterId}"`,
+          });
+        else if (!chapter.markers?.some((m) => m.id === action.markerId))
+          issues.push({
+            path,
+            message: `Clip "${clip.id}": chapter "${chapter.title}" has no marker "${action.markerId}"`,
+          });
+        break;
+      }
+      case 'openPopup':
+        if (!popupIds.has(action.popupId))
+          issues.push({ path, message: `Clip "${clip.id}": unknown popup "${action.popupId}"` });
+        break;
+      case 'setClipVisibility':
+        if (!clipIds.has(action.clipId))
+          issues.push({ path, message: `Clip "${clip.id}": unknown clip "${action.clipId}"` });
+        else if (action.clipId === clip.id && action.visible !== 'hide')
+          warnings.push({
+            path,
+            message: `Clip "${clip.id}" shows itself; it can only hide itself`,
+          });
+        break;
+      case 'openUrl':
+        break;
+    }
+  };
+  const checkClipActions = (tracks: Track[], basePath: string) =>
+    tracks.forEach((track, ti) =>
+      track.clips.forEach((clip, ci) => {
+        if (clip.type === 'audio') return;
+        const path = `${basePath}/${ti}/clips/${ci}/action`;
+        if (clip.type === 'question' && clip.action) {
+          issues.push({ path, message: `Question clip "${clip.id}" cannot have a click action` });
+          return;
+        }
+        if (clip.action) checkAction(clip, clip.action, path);
+      }),
+    );
+  checkClipActions(course.courseLayer?.background ?? [], '/courseLayer/background');
+  checkClipActions(course.courseLayer?.foreground ?? [], '/courseLayer/foreground');
+  course.chapters.forEach((chapter, i) =>
+    checkClipActions(chapter.tracks, `/chapters/${i}/tracks`),
+  );
+
+  // Completion rule.
+  if (course.completion?.mode === 'goal' && !course.chapters.some((c) => c.goal)) {
+    warnings.push({
+      path: '/completion',
+      message: 'The course is completed when a goal chapter is reached, but no chapter is a goal',
+    });
+  }
+  if (course.completion?.mode !== 'goal' && course.chapters.every((c) => c.optional)) {
+    warnings.push({
+      path: '/chapters',
+      message: 'All chapters are optional; the course counts as completed right away',
+    });
   }
 
   for (const [assetId, asset] of Object.entries(course.assets)) {

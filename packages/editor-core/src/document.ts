@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Lookup helpers and factories for course documents. */
 import type {
+  ClipAction,
   Asset,
   AssetKind,
   Chapter,
@@ -185,6 +186,17 @@ export interface NewClipOptions {
   asset?: Asset;
   /** For question clips. */
   questionKind?: QuestionKind;
+  /** For buttons: what a click does. Default: go to the chapter after `chapterId`. */
+  action?: ClipAction;
+  /** The chapter the clip is added to (for the default button action). */
+  chapterId?: string;
+}
+
+/** Default button target: the next chapter, or the first one at the end. */
+function defaultButtonAction(course: Course, chapterId: string | undefined): ClipAction {
+  const index = course.chapters.findIndex((c) => c.id === chapterId);
+  const target = course.chapters[index + 1] ?? course.chapters[0]!;
+  return { type: 'goToChapter', chapterId: target.id };
 }
 
 /** Creates a clip with sensible defaults for laypeople. */
@@ -216,6 +228,21 @@ export function createClip(course: Course, type: ClipType, options: NewClipOptio
         text: 'Box',
         style: { fontSize: 40, color: '#ffffff', align: 'center', verticalAlign: 'middle' },
       };
+    case 'button': {
+      const { width: sw, height: sh } = course.stage;
+      const width = Math.round(sw * 0.2);
+      const height = Math.round(sh * 0.1);
+      return {
+        ...base,
+        type,
+        text: 'Continue',
+        frame: { x: Math.round((sw - width) / 2), y: Math.round(sh * 0.75), width, height },
+        fill: '#4f8cff',
+        radius: 16,
+        style: { fontSize: 40, color: '#ffffff', align: 'center', verticalAlign: 'middle' },
+        action: options.action ?? defaultButtonAction(course, options.chapterId),
+      };
+    }
     case 'shape':
       return {
         ...base,

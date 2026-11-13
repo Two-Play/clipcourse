@@ -171,7 +171,7 @@ test('warns about overlapping clips on one track', () => {
 test('migrates version 1 documents to the current version', () => {
   const result = validateCourse(minimalCourse());
   expect(result.ok).toBe(true);
-  if (result.ok) expect(result.course.formatVersion).toBe(3);
+  if (result.ok) expect(result.course.formatVersion).toBe(4);
 });
 
 describe('questions (v3)', () => {
@@ -318,4 +318,124 @@ test('validates markers and the new clip types', () => {
   if (result.ok) expect(result.warnings.map((w) => w.message).join()).toMatch(/after the end/);
   doc.chapters[0].tracks[1].clips[0].animations.in.type = 'spin';
   expect(validateCourse(doc).ok).toBe(false);
+});
+
+describe('interactions (v4)', () => {
+  const interactive = () => {
+    const doc = minimalCourse() as AnyObj;
+    doc.formatVersion = 4;
+    doc.completion = { mode: 'goal' };
+    doc.popups = [{ id: 'info', title: 'More', text: 'Details', assetId: 'img' }];
+    doc.glossary = [{ id: 'g1', term: 'SCORM', variants: ['SCORMs'], definition: 'A standard.' }];
+    doc.chapters[0].markers = [{ id: 'm1', time: 1000, title: 'Mid' }];
+    doc.chapters[0].goal = true;
+    doc.chapters.push({
+      id: 'ch2',
+      title: 'Side branch',
+      duration: 1000,
+      transition: { mode: 'wait' },
+      optional: true,
+      tracks: [],
+    });
+    doc.chapters[0].tracks.push({
+      id: 'tb',
+      clips: [
+        {
+          id: 'b1',
+          type: 'button',
+          text: 'Go',
+          start: 0,
+          duration: 1000,
+          frame: { x: 0, y: 0, width: 300, height: 100 },
+          action: { type: 'goToChapter', chapterId: 'ch2' },
+        },
+        {
+          id: 'b2',
+          type: 'box',
+          start: 1000,
+          duration: 1000,
+          frame: { x: 0, y: 0, width: 300, height: 100 },
+          actionLabel: 'Show details',
+          action: { type: 'setClipVisibility', clipId: 'secret', visible: 'show', pause: true },
+        },
+        {
+          id: 'secret',
+          type: 'text',
+          text: 'Revealed',
+          startsHidden: true,
+          start: 2000,
+          duration: 1000,
+          frame: { x: 0, y: 0, width: 300, height: 100 },
+          action: { type: 'openPopup', popupId: 'info' },
+        },
+        {
+          id: 'link',
+          type: 'button',
+          text: 'Web',
+          start: 3000,
+          duration: 1000,
+          frame: { x: 0, y: 0, width: 300, height: 100 },
+          action: { type: 'goToMarker', chapterId: 'ch1', markerId: 'm1' },
+        },
+      ],
+    });
+    return doc;
+  };
+
+  test('a course with buttons, actions, popups, glossary and goals is valid', () => {
+    const result = validateCourse(interactive());
+    expect(result.ok).toBe(true);
+    if (result.ok) expect(result.warnings).toEqual([]);
+  });
+
+  test('actions must point to existing chapters, markers, popups and clips', () => {
+    const cases: [string, (d: AnyObj) => void, RegExp][] = [
+      [
+        'chapter',
+        (d) => (d.chapters[0].tracks[1].clips[0].action.chapterId = 'nope'),
+        /unknown chapter/,
+      ],
+      ['marker', (d) => (d.chapters[0].tracks[1].clips[3].action.markerId = 'nope'), /no marker/],
+      ['popup', (d) => (d.chapters[0].tracks[1].clips[2].action.popupId = 'nope'), /unknown popup/],
+      ['clip', (d) => (d.chapters[0].tracks[1].clips[1].action.clipId = 'nope'), /unknown clip/],
+      ['popup id', (d) => d.popups.push({ ...d.popups[0] }), /Duplicate popup/],
+      ['popup image', (d) => (d.popups[0].assetId = 'vid'), /expected image/],
+    ];
+    for (const [, change, message] of cases) {
+      const doc = interactive();
+      change(doc);
+      const result = validateCourse(doc);
+      expect(result.ok).toBe(false);
+      if (!result.ok) expect(result.issues.map((i) => i.message).join()).toMatch(message);
+    }
+  });
+
+  test('only http(s) and mailto links; buttons need an action; no action on questions', () => {
+    for (const url of ['javascript:alert(1)', 'data:text/html,x', 'file:///etc/passwd']) {
+      const doc = interactive();
+      doc.chapters[0].tracks[1].clips[3].action = { type: 'openUrl', url };
+      expect(validateCourse(doc).ok).toBe(false);
+    }
+    const ok = interactive();
+    ok.chapters[0].tracks[1].clips[3].action = { type: 'openUrl', url: 'mailto:help@example.org' };
+    expect(validateCourse(ok).ok).toBe(true);
+    const noAction = interactive();
+    delete noAction.chapters[0].tracks[1].clips[0].action;
+    expect(validateCourse(noAction).ok).toBe(false);
+  });
+
+  test('warns when the completion rule cannot be met', () => {
+    const doc = interactive();
+    delete doc.chapters[0].goal;
+    let result = validateCourse(doc);
+    expect(result.ok && result.warnings.map((w) => w.message).join()).toMatch(
+      /no chapter is a goal/,
+    );
+    doc.completion = { mode: 'required' };
+    doc.chapters[0].optional = true;
+    result = validateCourse(doc);
+    expect(result.ok && result.warnings.map((w) => w.message).join()).toMatch(
+      /All chapters are optional/,
+    );
+  });
 });

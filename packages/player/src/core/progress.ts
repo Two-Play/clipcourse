@@ -6,12 +6,16 @@
  *
  *   1~<chapter>~<time>~<seen>                      (no questions)
  *   2~<chapter>~<time>~<seen>~<answers>~<retries>  (with questions)
+ *   3~<chapter>~<time>~<seen>~<answers>~<retries>~<shown>
+ *                                                  (with show/hide actions)
  *
  * chapter is base 36, time is in tenths of a second (base 36), seen is a
  * hex bitset (chapter 0 = lowest bit of the first digit). answers has two
  * characters per question in course order (attempts in base 36, capped at
  * 35, and a state digit: 0 open, 1 done and wrong, 2 correct); trailing
  * "00" pairs are dropped. retries lists "chapter.count" pairs (base 36).
+ * shown is a hex bitset of the visibility of every clip a show/hide action
+ * can change (see visibilityTargets), in the same order.
  * 200 chapters and 200 questions need well under 500 characters.
  */
 
@@ -31,7 +35,19 @@ export interface Progress {
   answers?: Record<string, StoredAnswer>;
   /** Quiz restarts used, by chapter index. */
   quizRetries?: Record<number, number>;
+  /** Visibility of clips the learner can show or hide, by clip id. */
+  visibility?: Record<string, boolean>;
 }
+
+/** What a course needs stored besides chapters (see encodeProgress). */
+export interface ProgressLayout {
+  questionIds?: readonly string[];
+  /** Clips whose visibility is stored, with their default visibility. */
+  visibilityTargets?: readonly { id: string; shown: boolean }[];
+}
+
+const layoutOf = (layout: ProgressLayout | readonly string[]): ProgressLayout =>
+  Array.isArray(layout) ? { questionIds: layout as readonly string[] } : (layout as ProgressLayout);
 
 const SEPARATOR = '~';
 
@@ -39,12 +55,19 @@ const SEPARATOR = '~';
  * @param questionIds all question ids of the course in a stable order
  *   (see collectQuestions); needed to store answers compactly.
  */
-export function encodeProgress(progress: Progress, questionIds: readonly string[] = []): string {
+export function encodeProgress(
+  progress: Progress,
+  layoutOrQuestionIds: ProgressLayout | readonly string[] = [],
+): string {
+  const layout = layoutOf(layoutOrQuestionIds);
+  const questionIds = layout.questionIds ?? [];
+  const targets = layout.visibilityTargets ?? [];
   const time = Math.max(0, Math.floor(progress.time / 100));
   const base = [progress.chapterIndex.toString(36), time.toString(36), encodeBits(progress.seen)];
   const answers = progress.answers ?? {};
   const retries = Object.entries(progress.quizRetries ?? {}).filter(([, n]) => n > 0);
-  if (questionIds.length === 0 && retries.length === 0) return ['1', ...base].join(SEPARATOR);
+  if (questionIds.length === 0 && retries.length === 0 && targets.length === 0)
+    return ['1', ...base].join(SEPARATOR);
   let encoded = questionIds
     .map((id) => {
       const a = answers[id];
@@ -56,7 +79,9 @@ export function encodeProgress(progress: Progress, questionIds: readonly string[
   const retryPart = retries
     .map(([chapter, n]) => `${Number(chapter).toString(36)}.${n.toString(36)}`)
     .join(',');
-  return ['2', ...base, encoded, retryPart].join(SEPARATOR);
+  if (targets.length === 0) return ['2', ...base, encoded, retryPart].join(SEPARATOR);
+  const shown = targets.map((t) => progress.visibility?.[t.id] ?? t.shown);
+  return ['3', ...base, encoded, retryPart, encodeBits(shown)].join(SEPARATOR);
 }
 
 /**
@@ -67,15 +92,22 @@ export function encodeProgress(progress: Progress, questionIds: readonly string[
 export function decodeProgress(
   value: string | null | undefined,
   chapterCount: number,
-  questionIds: readonly string[] = [],
+  layoutOrQuestionIds: ProgressLayout | readonly string[] = [],
 ): Progress | null {
   if (!value) return null;
+  const layout = layoutOf(layoutOrQuestionIds);
+  const questionIds = layout.questionIds ?? [];
   const parts = value.split(SEPARATOR);
   const version = parts[0];
-  if (!((version === '1' && parts.length === 4) || (version === '2' && parts.length === 6)))
+  if (!(
+    (version === '1' && parts.length === 4) ||
+    (version === '2' && parts.length === 6) ||
+    (version === '3' && parts.length === 7)
+  ))
     return null;
-  const [, chapterPart, timePart, bitsPart, answersPart = '', retriesPart = ''] =
-    parts as string[] as [string, string, string, string, string?, string?];
+  const [, chapterPart, timePart, bitsPart, answersPart = '', retriesPart = '', shownPart = ''] =
+    parts as string[] as [string, string, string, string, string?, string?, string?];
+  if (!/^[0-9a-f]*$/.test(shownPart)) return null;
   if (!/^[0-9a-z]+$/.test(chapterPart) || !/^[0-9a-z]+$/.test(timePart)) return null;
   if (!/^[0-9a-f]*$/.test(bitsPart)) return null;
   if (!/^([0-9a-z][012])*$/.test(answersPart)) return null;
@@ -87,7 +119,7 @@ export function decodeProgress(
     time: parseInt(timePart, 36) * 100,
     seen: decodeBits(bitsPart, chapterCount),
   };
-  if (version === '2') {
+  if (version === '2' || version === '3') {
     const answers: Record<string, StoredAnswer> = {};
     questionIds.forEach((id, i) => {
       const pair = answersPart.slice(i * 2, i * 2 + 2);
@@ -103,6 +135,13 @@ export function decodeProgress(
       quizRetries[parseInt(chapter, 36)] = parseInt(count, 36);
     }
     progress.quizRetries = quizRetries;
+  }
+  const targets = layout.visibilityTargets ?? [];
+  if (version === '3' && targets.length > 0) {
+    const shown = decodeBits(shownPart, targets.length);
+    const visibility: Record<string, boolean> = {};
+    targets.forEach((t, i) => (visibility[t.id] = shown[i]!));
+    progress.visibility = visibility;
   }
   return progress;
 }

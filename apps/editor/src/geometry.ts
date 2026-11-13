@@ -22,12 +22,14 @@ const LABEL_KEYS: Record<Clip['type'], MessageKey> = {
   highlight: 'clipLabelHighlight',
   progress: 'clipLabelProgress',
   question: 'clipLabelQuestion',
+  button: 'clipLabelButton',
 };
 
 /** Short human label for a clip on the timeline. */
 export function clipLabel(clip: Clip, course: Course): string {
   const kind = t(LABEL_KEYS[clip.type]);
   if (clip.type === 'text') return clip.text.split('\n')[0]!.slice(0, 60) || kind;
+  if (clip.type === 'button') return `${kind}: ${clip.text.slice(0, 60)}`;
   if (clip.type === 'box' && clip.text) return clip.text.split('\n')[0]!.slice(0, 60);
   if (clip.type === 'image' || clip.type === 'video' || clip.type === 'audio') {
     const src = course.assets[clip.assetId]?.src ?? '';

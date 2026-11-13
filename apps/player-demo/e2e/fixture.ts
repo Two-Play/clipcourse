@@ -6,7 +6,7 @@ const frame = { x: 100, y: 100, width: 800, height: 200 };
 
 /** A media-free course so timing tests do not depend on codecs. */
 export const fixtureCourse: Course = {
-  formatVersion: 3,
+  formatVersion: 4,
   id: 'e2e_fixture',
   title: 'E2E fixture',
   language: 'en',

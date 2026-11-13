@@ -4,7 +4,8 @@
  * current chapter (and the course layer) are created once and then only
  * shown, hidden and re-stacked, so rendering any time is cheap and stateless.
  */
-import type { Asset, Course, QuestionClip } from '@clipcourse/format';
+import type { Asset, Course, GlossaryEntry, QuestionClip, VisualClip } from '@clipcourse/format';
+import { createGlossaryMatcher, type TextPart } from '../core/interactions.js';
 import { defaultStrings, type PlayerStrings } from '../i18n.js';
 import { renderQuestion } from './question.js';
 import { orderedTracks, type SceneState } from '../core/evaluate.js';
@@ -24,6 +25,10 @@ export interface StageOptions {
    * a static (non-interactive) preview, as in the editor.
    */
   mountQuestion?: (clip: QuestionClip, host: HTMLElement) => void;
+  /** Runs click actions; without it buttons are static (editor). */
+  onAction?: (clip: VisualClip, trigger: HTMLElement) => void;
+  /** Opens glossary terms; without it terms are only underlined. */
+  onTerm?: (entry: GlossaryEntry, trigger: HTMLElement) => void;
   strings?: PlayerStrings;
 }
 
@@ -45,10 +50,12 @@ export class Stage {
   private stalled = false;
   private lastScene: SceneState | null = null;
   private lastPlaying = false;
+  private glossary: ((text: string) => TextPart[]) | null;
 
   constructor(doc: Document, course: Course, options: StageOptions) {
     this.course = course;
     this.options = options;
+    this.glossary = createGlossaryMatcher(course.glossary);
     this.element = doc.createElement('div');
     this.element.className = 'ccp-stage';
     this.applyStageSize();
@@ -67,6 +74,8 @@ export class Stage {
    */
   setCourse(course: Course) {
     if (course === this.course) return;
+    if (course.glossary !== this.course.glossary)
+      this.glossary = createGlossaryMatcher(course.glossary);
     this.course = course;
     this.forceRebuild = true;
     this.chapterIndex = -1;
@@ -209,6 +218,12 @@ export class Stage {
           this.course.assets,
           this.options.resolveAsset,
           reuse,
+          {
+            glossary: this.glossary,
+            newWindowHint: (this.options.strings ?? defaultStrings).newWindow,
+            ...(this.options.onAction ? { onAction: this.options.onAction } : {}),
+            ...(this.options.onTerm ? { onTerm: this.options.onTerm } : {}),
+          },
         );
         if (view.root.tagName !== 'AUDIO') view.root.style.display = 'none';
         if (view.media) {

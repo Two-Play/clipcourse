@@ -7,7 +7,16 @@
  * Commands never produce an invalid document: positions are clamped and
  * resolved instead of throwing, so dragging always does something sensible.
  */
-import type { Asset, Chapter, Clip, Course, Question, Track } from '@clipcourse/format';
+import type {
+  Asset,
+  Chapter,
+  Clip,
+  Course,
+  GlossaryEntry,
+  Popup,
+  Question,
+  Track,
+} from '@clipcourse/format';
 import { current, isDraft } from 'immer';
 import {
   chapterIndexById,
@@ -20,6 +29,7 @@ import {
   type IdFactory,
 } from './document.js';
 import { nearestFreeStart, resizeLimits } from './placement.js';
+import { assertNotTargeted, chapterClipIds, remapActions, targetsChapter } from './references.js';
 
 export type Recipe = (draft: Course) => void;
 
@@ -73,6 +83,8 @@ export const setChapterProps =
     chapterId: string,
     props: Partial<Pick<Chapter, 'title' | 'duration' | 'transition'>> & {
       background?: string | null;
+      optional?: boolean;
+      goal?: boolean;
     },
   ): Recipe =>
   (draft) => {
@@ -83,6 +95,10 @@ export const setChapterProps =
     if (props.transition !== undefined) chapter.transition = props.transition;
     if (props.background === null) delete chapter.background;
     else if (props.background !== undefined) chapter.background = props.background;
+    for (const flag of ['optional', 'goal'] as const) {
+      if (props[flag] === true) chapter[flag] = true;
+      else if (props[flag] === false) delete chapter[flag];
+    }
   };
 
 /** Sets the chapter duration to the end of its last clip. */
@@ -111,7 +127,14 @@ export const addTrack =
 export const removeTrack =
   (trackId: string): Recipe =>
   (draft) => {
-    const { tracks, trackIndex } = requireTrack(draft, trackId);
+    const { tracks, trackIndex, track } = requireTrack(draft, trackId);
+    const ids = new Set(track.clips.map((c) => c.id));
+    assertNotTargeted(
+      draft,
+      (a) => a.type === 'setClipVisibility' && ids.has(a.clipId),
+      ids,
+      `A clip on track "${track.name ?? track.id}"`,
+    );
     tracks.splice(trackIndex, 1);
   };
 
@@ -153,6 +176,12 @@ export const removeClips =
   (clipIds: readonly string[]): Recipe =>
   (draft) => {
     const ids = new Set(clipIds);
+    assertNotTargeted(
+      draft,
+      (a) => a.type === 'setClipVisibility' && ids.has(a.clipId),
+      ids,
+      ids.size === 1 ? 'This clip' : 'One of these clips',
+    );
     for (const { tracks } of trackGroups(draft)) {
       for (const track of tracks) track.clips = track.clips.filter((c) => !ids.has(c.id));
     }
@@ -283,9 +312,23 @@ export function assetUsage(course: Course, assetId: string): string[] {
               ? [clip.assetId, clip.captionsAssetId]
               : [];
         if (refs.includes(assetId)) users.push(clip.id);
+        if (
+          clip.type === 'question' &&
+          clip.question.kind === 'hotspot' &&
+          clip.question.assetId === assetId
+        )
+          users.push(clip.id);
       }
     }
   };
+  for (const chapter of course.chapters) {
+    for (const q of chapter.quiz?.questions ?? []) {
+      if (q.kind === 'hotspot' && q.assetId === assetId) users.push(q.id);
+    }
+  }
+  for (const popup of course.popups ?? []) {
+    if (popup.assetId === assetId) users.push(`popup ${popup.id}`);
+  }
   for (const chapter of course.chapters) visit(chapter.tracks);
   if (course.courseLayer) {
     visit(course.courseLayer.background);
@@ -307,16 +350,27 @@ export const removeAsset =
 /** Deep copy of a chapter with fresh ids for the chapter, tracks, clips and markers. */
 export function cloneChapter(chapter: Chapter, newId: IdFactory): Chapter {
   const copy = structuredClone(isDraft(chapter) ? current(chapter) : chapter);
-  copy.id = newId('chapter');
+  const chapters = new Map([[copy.id, newId('chapter')]]);
+  const clips = new Map<string, string>();
+  const markers = new Map<string, string>();
+  copy.id = chapters.get(copy.id)!;
   for (const track of copy.tracks) {
     track.id = newId('track');
     for (const clip of track.clips) {
-      clip.id = newId('clip');
+      const id = newId('clip');
+      clips.set(clip.id, id);
+      clip.id = id;
       if (clip.type === 'question') clip.question.id = `${clip.id}_q`;
     }
   }
   for (const question of copy.quiz?.questions ?? []) question.id = newId('question');
-  for (const marker of copy.markers ?? []) marker.id = newId('marker');
+  for (const marker of copy.markers ?? []) {
+    const id = newId('marker');
+    markers.set(marker.id, id);
+    marker.id = id;
+  }
+  // Actions that pointed into the original now point into the copy.
+  remapActions(copy, { chapters, clips, markers });
   return copy;
 }
 
@@ -337,6 +391,13 @@ export const removeChapter =
     if (draft.chapters.length <= 1) throw new Error('A course needs at least one chapter');
     const index = chapterIndexById(draft, chapterId);
     if (index < 0) throw new Error(`Unknown chapter "${chapterId}"`);
+    const chapter = draft.chapters[index]!;
+    assertNotTargeted(
+      draft,
+      (a) => targetsChapter(a, chapter),
+      chapterClipIds(chapter),
+      `Chapter "${chapter.title}"`,
+    );
     draft.chapters.splice(index, 1);
   };
 
@@ -388,6 +449,13 @@ export const removeMarker =
   (chapterId: string, markerId: string): Recipe =>
   (draft) => {
     const chapter = getChapter(draft, chapterId);
+    const marker = chapter.markers?.find((m) => m.id === markerId);
+    assertNotTargeted(
+      draft,
+      (a) => a.type === 'goToMarker' && a.markerId === markerId,
+      new Set(),
+      `Marker "${marker?.title ?? markerId}"`,
+    );
     chapter.markers = (chapter.markers ?? []).filter((m) => m.id !== markerId);
     if (chapter.markers.length === 0) delete chapter.markers;
   };
@@ -506,4 +574,97 @@ export const moveQuizQuestion =
     if (index < 0) throw new Error(`Unknown question "${questionId}"`);
     const [question] = quiz.questions.splice(index, 1);
     quiz.questions.splice(Math.max(0, Math.min(toIndex, quiz.questions.length)), 0, question!);
+  };
+
+// --- Completion, popups and glossary -------------------------------------------------
+
+export const setCompletion =
+  (mode: 'required' | 'goal'): Recipe =>
+  (draft) => {
+    if (mode === 'required') delete draft.completion;
+    else draft.completion = { mode };
+  };
+
+function requirePopup(draft: Course, popupId: string): Popup {
+  const popup = draft.popups?.find((p) => p.id === popupId);
+  if (!popup) throw new Error(`Unknown popup "${popupId}"`);
+  return popup;
+}
+
+export const addPopup =
+  (popup: Popup): Recipe =>
+  (draft) => {
+    (draft.popups ??= []).push(structuredClone(popup));
+  };
+
+export const updatePopup =
+  (
+    popupId: string,
+    props: {
+      title?: string | undefined;
+      text?: string | undefined;
+      assetId?: string | null | undefined;
+      alt?: string | null | undefined;
+    },
+  ): Recipe =>
+  (draft) => {
+    const popup = requirePopup(draft, popupId);
+    if (props.title !== undefined) popup.title = props.title;
+    if (props.text !== undefined) popup.text = props.text;
+    for (const key of ['assetId', 'alt'] as const) {
+      if (props[key] === null) delete popup[key];
+      else if (props[key] !== undefined) popup[key] = props[key];
+    }
+  };
+
+export const removePopup =
+  (popupId: string): Recipe =>
+  (draft) => {
+    const popup = requirePopup(draft, popupId);
+    assertNotTargeted(
+      draft,
+      (a) => a.type === 'openPopup' && a.popupId === popupId,
+      new Set(),
+      `Popup "${popup.title}"`,
+    );
+    draft.popups = draft.popups!.filter((p) => p.id !== popupId);
+    if (draft.popups.length === 0) delete draft.popups;
+  };
+
+function requireEntry(draft: Course, entryId: string): GlossaryEntry {
+  const entry = draft.glossary?.find((g) => g.id === entryId);
+  if (!entry) throw new Error(`Unknown glossary entry "${entryId}"`);
+  return entry;
+}
+
+export const addGlossaryEntry =
+  (entry: GlossaryEntry): Recipe =>
+  (draft) => {
+    (draft.glossary ??= []).push(structuredClone(entry));
+  };
+
+export const updateGlossaryEntry =
+  (
+    entryId: string,
+    props: {
+      term?: string | undefined;
+      definition?: string | undefined;
+      variants?: string[] | null | undefined;
+    },
+  ): Recipe =>
+  (draft) => {
+    const entry = requireEntry(draft, entryId);
+    if (props.term !== undefined) entry.term = props.term;
+    if (props.definition !== undefined) entry.definition = props.definition;
+    if (props.variants === null || (props.variants && props.variants.length === 0))
+      delete entry.variants;
+    else if (props.variants) entry.variants = [...props.variants];
+  };
+
+export const removeGlossaryEntry =
+  (entryId: string): Recipe =>
+  (draft) => {
+    requireEntry(draft, entryId);
+    draft.glossary = draft.glossary!.filter((g) => g.id !== entryId);
+    if (draft.glossary.length === 0) delete draft.glossary;
   };

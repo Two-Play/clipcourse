@@ -197,7 +197,9 @@ export function ChapterPanel({ onMessage }: { onMessage: (message: string) => vo
                       return;
                     const next = chapters[index + 1] ?? chapters[index - 1]!;
                     if (active) store.getState().setChapter(next.id);
-                    store.getState().execute('Delete chapter', removeChapter(chapter.id));
+                    // Refused (still a click target): stay on the chapter.
+                    if (!session.run('Delete chapter', removeChapter(chapter.id)) && active)
+                      store.getState().setChapter(chapter.id);
                   }}
                 >
                   <Trash2 size={14} aria-hidden />

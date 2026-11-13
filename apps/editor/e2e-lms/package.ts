@@ -21,7 +21,7 @@ export function testCourse(id: string): Course {
     style: { fontSize: 96, color: '#ffffff', align: 'center' as const },
   });
   return {
-    formatVersion: 3,
+    formatVersion: 4,
     id,
     title: `Clipcourse LMS test ${id}`,
     language: 'en',
@@ -35,6 +35,30 @@ export function testCourse(id: string): Course {
         transition: { mode: 'wait' },
         tracks: [
           { id: 't1', clips: [text('c1', 'Chapter one')] },
+          {
+            id: 't_reveal',
+            clips: [
+              {
+                id: 'reveal',
+                type: 'button',
+                text: 'Show the hint',
+                start: 0,
+                duration: 1500,
+                frame: { x: 760, y: 820, width: 400, height: 110 },
+                action: { type: 'setClipVisibility', clipId: 'hint', visible: 'show' },
+              },
+              {
+                id: 'hint',
+                type: 'text',
+                text: 'Hint revealed',
+                startsHidden: true,
+                start: 0,
+                duration: 1500,
+                frame: { x: 160, y: 650, width: 1600, height: 120 },
+                style: { fontSize: 64, color: '#ffd166', align: 'center' },
+              },
+            ],
+          },
           {
             id: 't2',
             clips: [
@@ -84,6 +108,15 @@ export function testCourse(id: string): Course {
           ],
         },
       },
+      {
+        // Never visited: optional chapters are not needed for completion.
+        id: 'extra',
+        title: 'Extra material',
+        duration: 1000,
+        transition: { mode: 'wait' },
+        optional: true,
+        tracks: [{ id: 't4', clips: [text('c4', 'Extra')] }],
+      },
     ],
     assessment: { passingScore: 50 },
   };
@@ -93,6 +126,12 @@ export function testCourse(id: string): Course {
  * Plays the quiz chapter: first answer right, second wrong, so the LMS
  * should store a score of 50 and "passed" (passing score 50 %).
  */
+/** Reveals the hint in chapter one (stored in the bookmark, checked after resume). */
+export async function revealHint(course: Frame | FrameLocator) {
+  await course.getByRole('button', { name: 'Show the hint' }).click();
+  await expect(course.getByText('Hint revealed')).toBeVisible();
+}
+
 export async function answerQuiz(course: Frame | FrameLocator) {
   await expect(course.locator('.ccp-quiz-progress')).toHaveText('Question 1 of 2');
   await course.getByRole('radio', { name: 'Blue' }).check();

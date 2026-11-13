@@ -8,7 +8,16 @@
  * that would make it invalid is undone and reported as an error, so
  * automated edits can never corrupt a project.
  */
-import type { Asset, Chapter, Clip, ClipType, Course, Question } from '@clipcourse/format';
+import type {
+  Asset,
+  Chapter,
+  Clip,
+  ClipType,
+  Course,
+  GlossaryEntry,
+  Popup,
+  Question,
+} from '@clipcourse/format';
 import { validateCourse } from '@clipcourse/format/validation';
 import { current, isDraft } from 'immer';
 import * as cmd from './commands.js';
@@ -48,6 +57,8 @@ export type Operation =
       duration?: number;
       transition?: 'wait' | 'auto';
       background?: string | null;
+      optional?: boolean;
+      goal?: boolean;
     }
   | { op: 'fit_chapter'; chapterId: string }
   | { op: 'move_chapter'; chapterId: string; index: number }
@@ -104,6 +115,26 @@ export type Operation =
     }
   | { op: 'delete_quiz_question'; chapterId: string; questionId: string }
   | { op: 'move_quiz_question'; chapterId: string; questionId: string; index: number }
+  | { op: 'set_completion'; mode: 'required' | 'goal' }
+  | { op: 'add_popup'; title: string; text: string; assetId?: string; alt?: string }
+  | {
+      op: 'update_popup';
+      popupId: string;
+      title?: string;
+      text?: string;
+      assetId?: string | null;
+      alt?: string | null;
+    }
+  | { op: 'delete_popup'; popupId: string }
+  | { op: 'add_glossary_entry'; term: string; definition: string; variants?: string[] }
+  | {
+      op: 'update_glossary_entry';
+      entryId: string;
+      term?: string;
+      definition?: string;
+      variants?: string[] | null;
+    }
+  | { op: 'delete_glossary_entry'; entryId: string }
   | { op: 'undo' }
   | { op: 'redo' };
 
@@ -239,11 +270,13 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
         const index = operation.index ?? course.chapters.length;
         let chapter: Chapter;
         let assets: Record<string, Asset> = {};
+        let popups: Popup[] = [];
         if (operation.template) {
           const template = findTemplate(course, operation.template, ctx.templates ?? []);
           const result = instantiateTemplate({ course, files }, template, newId);
           chapter = result.chapter;
           assets = result.assets;
+          popups = result.popups;
           for (const [path, data] of result.files) files.set(path, data);
         } else {
           chapter = {
@@ -259,6 +292,7 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
         if (operation.transition) chapter.transition = { mode: operation.transition };
         recipe = (d) => {
           Object.assign(d.assets, assets);
+          for (const popup of popups) cmd.addPopup(popup)(d);
           cmd.addChapter(chapter, index)(d);
         };
         created.chapterId = chapter.id;
@@ -266,12 +300,14 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
         break;
       }
       case 'update_chapter': {
-        const { chapterId, title, duration, transition, background } = operation;
+        const { chapterId, title, duration, transition, background, optional, goal } = operation;
         recipe = cmd.setChapterProps(chapterId, {
           ...(title !== undefined ? { title } : {}),
           ...(duration !== undefined ? { duration } : {}),
           ...(transition !== undefined ? { transition: { mode: transition } } : {}),
           ...(background !== undefined ? { background } : {}),
+          ...(optional !== undefined ? { optional } : {}),
+          ...(goal !== undefined ? { goal } : {}),
         });
         message = 'Chapter updated';
         break;
@@ -368,6 +404,7 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
           ...(operation.duration !== undefined ? { duration: operation.duration } : {}),
           ...(operation.assetId ? { assetId: operation.assetId } : {}),
           ...(asset ? { asset } : {}),
+          ...(operation.chapterId ? { chapterId: operation.chapterId } : {}),
         });
         let trackId = operation.trackId;
         let newTrack: { chapterId: string; name: string } | null = null;
@@ -542,6 +579,58 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
       case 'move_quiz_question':
         recipe = cmd.moveQuizQuestion(operation.chapterId, operation.questionId, operation.index);
         message = 'Question moved';
+        break;
+      case 'set_completion':
+        recipe = cmd.setCompletion(operation.mode);
+        message =
+          operation.mode === 'goal'
+            ? 'The course is completed when a goal chapter is reached'
+            : 'The course is completed when all required chapters are seen';
+        break;
+      case 'add_popup': {
+        const popup: Popup = {
+          id: newId('popup'),
+          title: operation.title,
+          text: operation.text,
+          ...(operation.assetId ? { assetId: operation.assetId } : {}),
+          ...(operation.alt !== undefined ? { alt: operation.alt } : {}),
+        };
+        recipe = cmd.addPopup(popup);
+        created.popupId = popup.id;
+        message = `Popup "${popup.title}" added`;
+        break;
+      }
+      case 'update_popup': {
+        const { popupId, title, text, assetId, alt } = operation;
+        recipe = cmd.updatePopup(popupId, { title, text, assetId, alt });
+        message = 'Popup updated';
+        break;
+      }
+      case 'delete_popup':
+        recipe = cmd.removePopup(operation.popupId);
+        message = 'Popup deleted';
+        break;
+      case 'add_glossary_entry': {
+        const entry: GlossaryEntry = {
+          id: newId('term'),
+          term: operation.term,
+          definition: operation.definition,
+          ...(operation.variants?.length ? { variants: operation.variants } : {}),
+        };
+        recipe = cmd.addGlossaryEntry(entry);
+        created.glossaryId = entry.id;
+        message = `Glossary entry "${entry.term}" added`;
+        break;
+      }
+      case 'update_glossary_entry': {
+        const { entryId, term, definition, variants } = operation;
+        recipe = cmd.updateGlossaryEntry(entryId, { term, definition, variants });
+        message = 'Glossary entry updated';
+        break;
+      }
+      case 'delete_glossary_entry':
+        recipe = cmd.removeGlossaryEntry(operation.entryId);
+        message = 'Glossary entry deleted';
         break;
       case 'delete_asset':
         recipe = cmd.removeAsset(operation.assetId);

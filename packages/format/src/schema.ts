@@ -76,8 +76,34 @@ const AnimationSchema = v.strictObject({
   easing: v.exactOptional(v.picklist(['linear', 'ease-in', 'ease-out', 'ease-in-out'])),
 });
 
+/** http(s) and mailto only: no javascript: or data: links. */
+export const URL_PATTERN = /^(https?:\/\/[^\s]+|mailto:[^\s]+)$/i;
+
+export const ClipActionSchema = v.variant('type', [
+  v.strictObject({ type: v.literal('goToChapter'), chapterId: id }),
+  v.strictObject({ type: v.literal('goToMarker'), chapterId: id, markerId: id }),
+  v.strictObject({ type: v.literal('openPopup'), popupId: id }),
+  v.strictObject({
+    type: v.literal('setClipVisibility'),
+    clipId: id,
+    visible: v.picklist(['show', 'hide', 'toggle']),
+    pause: v.exactOptional(v.boolean()),
+  }),
+  v.strictObject({
+    type: v.literal('openUrl'),
+    url: v.pipe(
+      v.string(),
+      v.maxLength(2048),
+      v.regex(URL_PATTERN, 'Only http(s) and mailto links'),
+    ),
+  }),
+]);
+
 const visualBase = {
   ...clipBase,
+  action: v.exactOptional(ClipActionSchema),
+  actionLabel: v.exactOptional(v.pipe(v.string(), v.maxLength(500))),
+  startsHidden: v.exactOptional(v.boolean()),
   frame: FrameSchema,
   opacity: v.exactOptional(unit),
   animations: v.exactOptional(
@@ -158,6 +184,18 @@ const HighlightClipSchema = v.strictObject({
   radius: v.exactOptional(nonNegative),
   pulse: v.exactOptional(v.boolean()),
   label: v.exactOptional(v.pipe(v.string(), v.maxLength(500))),
+});
+
+const ButtonClipSchema = v.strictObject({
+  ...visualBase,
+  type: v.literal('button'),
+  text: v.pipe(v.string(), v.maxLength(500)),
+  action: ClipActionSchema,
+  style: v.exactOptional(TextStyleSchema),
+  fill: v.exactOptional(color),
+  stroke: v.exactOptional(color),
+  strokeWidth: v.exactOptional(nonNegative),
+  radius: v.exactOptional(nonNegative),
 });
 
 const ProgressClipSchema = v.strictObject({
@@ -264,6 +302,7 @@ const QuestionClipSchema = v.strictObject({
 
 const ClipSchema = v.variant('type', [
   ImageClipSchema,
+  ButtonClipSchema,
   TextClipSchema,
   ShapeClipSchema,
   BoxClipSchema,
@@ -300,6 +339,8 @@ const ChapterSchema = v.strictObject({
       }),
     ),
   ),
+  optional: v.exactOptional(v.boolean()),
+  goal: v.exactOptional(v.boolean()),
   tracks: v.array(TrackSchema),
   quiz: v.exactOptional(
     v.strictObject({
@@ -311,7 +352,7 @@ const ChapterSchema = v.strictObject({
 });
 
 export const CourseSchema = v.strictObject({
-  formatVersion: v.literal(3),
+  formatVersion: v.literal(4),
   id,
   title: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
   language: v.pipe(v.string(), v.regex(LANGUAGE_PATTERN, 'Invalid language tag')),
@@ -326,6 +367,41 @@ export const CourseSchema = v.strictObject({
   chapters: v.pipe(v.array(ChapterSchema), v.minLength(1, 'A course needs at least one chapter')),
   assessment: v.exactOptional(
     v.strictObject({ passingScore: v.pipe(v.number(), v.minValue(0), v.maxValue(100)) }),
+  ),
+  completion: v.exactOptional(
+    v.variant('mode', [
+      v.strictObject({ mode: v.literal('required') }),
+      v.strictObject({ mode: v.literal('goal') }),
+    ]),
+  ),
+  popups: v.exactOptional(
+    v.pipe(
+      v.array(
+        v.strictObject({
+          id,
+          title: v.pipe(v.string(), v.minLength(1), v.maxLength(500)),
+          text: v.pipe(v.string(), v.maxLength(10000)),
+          assetId: v.exactOptional(id),
+          alt: v.exactOptional(v.pipe(v.string(), v.maxLength(1000))),
+        }),
+      ),
+      v.maxLength(500),
+    ),
+  ),
+  glossary: v.exactOptional(
+    v.pipe(
+      v.array(
+        v.strictObject({
+          id,
+          term: v.pipe(v.string(), v.minLength(1), v.maxLength(200)),
+          variants: v.exactOptional(
+            v.pipe(v.array(v.pipe(v.string(), v.minLength(1), v.maxLength(200))), v.maxLength(20)),
+          ),
+          definition: v.pipe(v.string(), v.minLength(1), v.maxLength(5000)),
+        }),
+      ),
+      v.maxLength(1000),
+    ),
   ),
   extensions: v.exactOptional(v.record(v.string(), v.unknown())),
 });

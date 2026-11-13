@@ -1337,3 +1337,60 @@ label.radio {
   flex: none;
   width: auto;
 }
+
+/* --- Popups, glossary, click actions ------------------------------------------- */
+.sidebar {
+  overflow-y: auto;
+}
+.sidebar > .side-panel {
+  flex: none;
+  padding: 10px;
+  border-top: 1px solid var(--line);
+}
+.side-panel h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.side-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 2px;
+}
+.side-list li {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border-radius: 6px;
+}
+.side-list li.is-open {
+  background: color-mix(in srgb, var(--accent) 22%, transparent);
+}
+.side-list-item {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-align: left;
+  text-overflow: ellipsis;
+  background: transparent;
+  border-color: transparent;
+}
+.side-list button.icon {
+  flex: none;
+}
+.side-editor {
+  display: grid;
+  gap: 8px;
+  margin-top: 8px;
+}
+.tl-clip-badge {
+  flex: none;
+  margin-left: 6px;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.tl-clip-badge + .tl-clip-label {
+  padding-left: 4px;
+}
