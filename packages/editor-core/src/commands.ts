@@ -7,7 +7,7 @@
  * Commands never produce an invalid document: positions are clamped and
  * resolved instead of throwing, so dragging always does something sensible.
  */
-import type { Asset, Chapter, Clip, Course, Track } from '@clipcourse/format';
+import type { Asset, Chapter, Clip, Course, Question, Track } from '@clipcourse/format';
 import { current, isDraft } from 'immer';
 import {
   chapterIndexById,
@@ -238,6 +238,7 @@ export const splitClip =
     if (offset < MIN_CLIP_DURATION || clip.duration - offset < MIN_CLIP_DURATION) return;
     const second = cloneClip(clip);
     second.id = newId;
+    if (second.type === 'question') second.question.id = `${newId}_q`;
     second.start = at;
     second.duration = clip.duration - offset;
     if (second.type === 'video' || second.type === 'audio') {
@@ -254,6 +255,7 @@ export const duplicateClip =
     const { track, clip, chapterIndex } = requireClip(draft, clipId);
     const copy = cloneClip(clip);
     copy.id = newId;
+    if (copy.type === 'question') copy.question.id = `${newId}_q`;
     copy.start = nearestFreeStart(track, clip.start + clip.duration, clip.duration);
     track.clips.push(copy);
     sortClips(track);
@@ -308,8 +310,12 @@ export function cloneChapter(chapter: Chapter, newId: IdFactory): Chapter {
   copy.id = newId('chapter');
   for (const track of copy.tracks) {
     track.id = newId('track');
-    for (const clip of track.clips) clip.id = newId('clip');
+    for (const clip of track.clips) {
+      clip.id = newId('clip');
+      if (clip.type === 'question') clip.question.id = `${clip.id}_q`;
+    }
   }
+  for (const question of copy.quiz?.questions ?? []) question.id = newId('question');
   for (const marker of copy.markers ?? []) marker.id = newId('marker');
   return copy;
 }
@@ -417,3 +423,87 @@ export const pruneCourseLayer = (): Recipe => (draft) => {
     delete draft.courseLayer;
   }
 };
+
+// --- Quizzes and assessment --------------------------------------------------------
+
+export const setAssessment =
+  (passingScore: number | null): Recipe =>
+  (draft) => {
+    if (passingScore === null) delete draft.assessment;
+    else draft.assessment = { passingScore: Math.min(100, Math.max(0, passingScore)) };
+  };
+
+/** Turns a chapter into a quiz chapter (or changes its quiz settings); null removes the quiz. */
+export const setQuiz =
+  (
+    chapterId: string,
+    props: { shuffle?: boolean; retries?: number; questions?: Question[] } | null,
+  ): Recipe =>
+  (draft) => {
+    const chapter = getChapter(draft, chapterId);
+    if (props === null) {
+      delete chapter.quiz;
+      return;
+    }
+    const quiz = (chapter.quiz ??= { questions: [] });
+    if (props.questions) quiz.questions = structuredClone(props.questions);
+    if (props.shuffle !== undefined) {
+      if (props.shuffle) quiz.shuffle = true;
+      else delete quiz.shuffle;
+    }
+    if (props.retries !== undefined) {
+      if (props.retries > 0) quiz.retries = Math.round(props.retries);
+      else delete quiz.retries;
+    }
+  };
+
+function requireQuiz(draft: Course, chapterId: string) {
+  const chapter = getChapter(draft, chapterId);
+  if (!chapter.quiz) throw new Error(`Chapter "${chapter.title}" is not a quiz chapter`);
+  return chapter.quiz;
+}
+
+export const addQuizQuestion =
+  (chapterId: string, question: Question, index?: number): Recipe =>
+  (draft) => {
+    const quiz = requireQuiz(draft, chapterId);
+    const at =
+      index === undefined
+        ? quiz.questions.length
+        : Math.max(0, Math.min(index, quiz.questions.length));
+    quiz.questions.splice(at, 0, structuredClone(question));
+  };
+
+export const updateQuizQuestion =
+  (
+    chapterId: string,
+    questionId: string,
+    update: (question: Question) => Question | void,
+  ): Recipe =>
+  (draft) => {
+    const quiz = requireQuiz(draft, chapterId);
+    const index = quiz.questions.findIndex((q) => q.id === questionId);
+    if (index < 0) throw new Error(`Unknown question "${questionId}"`);
+    const current = quiz.questions[index]!;
+    const result = update(current);
+    if (result) quiz.questions[index] = result;
+    if (quiz.questions[index]!.id !== questionId) throw new Error('The question id cannot change');
+  };
+
+export const removeQuizQuestion =
+  (chapterId: string, questionId: string): Recipe =>
+  (draft) => {
+    const quiz = requireQuiz(draft, chapterId);
+    if (quiz.questions.length <= 1) throw new Error('A quiz needs at least one question');
+    quiz.questions = quiz.questions.filter((q) => q.id !== questionId);
+  };
+
+export const moveQuizQuestion =
+  (chapterId: string, questionId: string, toIndex: number): Recipe =>
+  (draft) => {
+    const quiz = requireQuiz(draft, chapterId);
+    const index = quiz.questions.findIndex((q) => q.id === questionId);
+    if (index < 0) throw new Error(`Unknown question "${questionId}"`);
+    const [question] = quiz.questions.splice(index, 1);
+    quiz.questions.splice(Math.max(0, Math.min(toIndex, quiz.questions.length)), 0, question!);
+  };

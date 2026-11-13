@@ -8,11 +8,12 @@
  * that would make it invalid is undone and reported as an error, so
  * automated edits can never corrupt a project.
  */
-import type { Asset, Chapter, Clip, ClipType, Course } from '@clipcourse/format';
+import type { Asset, Chapter, Clip, ClipType, Course, Question } from '@clipcourse/format';
 import { validateCourse } from '@clipcourse/format/validation';
 import { current, isDraft } from 'immer';
 import * as cmd from './commands.js';
 import {
+  collectIds,
   COURSE_LAYER_DURATION,
   createClip,
   findClip,
@@ -23,6 +24,7 @@ import {
 } from './document.js';
 import { fits } from './placement.js';
 import { prepareAsset } from './project.js';
+import { createQuestion } from './questions.js';
 import type { EditorStore } from './store.js';
 import { builtInTemplates, instantiateTemplate, type ChapterTemplate } from './templates.js';
 
@@ -91,6 +93,17 @@ export type Operation =
     }
   | { op: 'update_asset'; assetId: string; alt?: string | null }
   | { op: 'delete_asset'; assetId: string }
+  | { op: 'set_assessment'; passingScore: number | null }
+  | { op: 'set_quiz'; chapterId: string; enabled?: boolean; shuffle?: boolean; retries?: number }
+  | { op: 'add_quiz_question'; chapterId: string; question: Question; index?: number }
+  | {
+      op: 'update_quiz_question';
+      chapterId: string;
+      questionId: string;
+      props: Record<string, unknown>;
+    }
+  | { op: 'delete_quiz_question'; chapterId: string; questionId: string }
+  | { op: 'move_quiz_question'; chapterId: string; questionId: string; index: number }
   | { op: 'undo' }
   | { op: 'redo' };
 
@@ -122,7 +135,7 @@ export class OperationError extends Error {
 export const SOURCES_EXTENSION = 'clipcourse.assetSources';
 
 const FORBIDDEN_PROPS = ['id', 'type'];
-const MERGED_PROPS = ['style', 'frame', 'animations'];
+const MERGED_PROPS = ['style', 'frame', 'animations', 'question'];
 
 /**
  * Applies a partial property patch to a clip. Objects listed in
@@ -135,6 +148,15 @@ export function patchClip(clip: Clip, props: ClipProps) {
     if (key === 'start' || key === 'duration') continue; // handled by move/trim
     if (value === null || value === undefined) {
       delete target[key];
+    } else if (
+      key === 'question' &&
+      typeof value === 'object' &&
+      'kind' in (value as object) &&
+      (value as { kind: unknown }).kind !==
+        (target.question as { kind?: unknown } | undefined)?.kind
+    ) {
+      // A different kind has different fields: replace instead of merging.
+      target[key] = structuredClone(value);
     } else if (MERGED_PROPS.includes(key) && typeof value === 'object' && !Array.isArray(value)) {
       const base = (target[key] ?? {}) as Record<string, unknown>;
       const merged: Record<string, unknown> = { ...(isDraft(base) ? current(base) : base) };
@@ -457,6 +479,67 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
         message = 'Asset updated';
         break;
       }
+      case 'set_assessment':
+        recipe = cmd.setAssessment(operation.passingScore);
+        message =
+          operation.passingScore === null
+            ? 'Assessment removed'
+            : `Passing score set to ${operation.passingScore} %`;
+        break;
+      case 'set_quiz': {
+        const { chapterId, enabled, shuffle, retries } = operation;
+        const chapter = getChapter(course, chapterId);
+        if (enabled === false) {
+          recipe = cmd.setQuiz(chapterId, null);
+          message = 'Quiz removed from the chapter';
+        } else {
+          const questions = chapter.quiz
+            ? undefined
+            : [createQuestion('single', newId('question'))];
+          recipe = cmd.setQuiz(chapterId, {
+            ...(questions ? { questions } : {}),
+            ...(shuffle !== undefined ? { shuffle } : {}),
+            ...(retries !== undefined ? { retries } : {}),
+          });
+          message = chapter.quiz
+            ? 'Quiz settings updated'
+            : 'Chapter is now a quiz chapter (with one example question)';
+          if (questions) created.questionId = questions[0]!.id;
+        }
+        break;
+      }
+      case 'add_quiz_question': {
+        const question = { ...operation.question, id: operation.question.id || newId('question') };
+        if (collectIds(course).has(question.id) || questionIdsOf(course).has(question.id)) {
+          question.id = newId('question');
+        }
+        recipe = cmd.addQuizQuestion(operation.chapterId, question, operation.index);
+        created.questionId = question.id;
+        message = 'Question added to the quiz';
+        break;
+      }
+      case 'update_quiz_question':
+        recipe = cmd.updateQuizQuestion(operation.chapterId, operation.questionId, (question) => {
+          const patched = {
+            ...structuredClone(isDraft(question) ? current(question) : question),
+          } as Record<string, unknown>;
+          for (const [key, value] of Object.entries(operation.props)) {
+            if (key === 'id') throw new OperationError('"id" cannot be changed');
+            if (value === null) delete patched[key];
+            else patched[key] = structuredClone(value);
+          }
+          return patched as unknown as Question;
+        });
+        message = 'Question updated';
+        break;
+      case 'delete_quiz_question':
+        recipe = cmd.removeQuizQuestion(operation.chapterId, operation.questionId);
+        message = 'Question deleted';
+        break;
+      case 'move_quiz_question':
+        recipe = cmd.moveQuizQuestion(operation.chapterId, operation.questionId, operation.index);
+        message = 'Question moved';
+        break;
       case 'delete_asset':
         recipe = cmd.removeAsset(operation.assetId);
         message = 'Asset deleted';
@@ -486,6 +569,17 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
     message: changed ? message : 'Nothing changed',
     ...(Object.keys(created).length ? { created } : {}),
   };
+}
+
+/** All question ids (question clips and quiz chapters). */
+function questionIdsOf(course: Course): Set<string> {
+  const ids = new Set<string>();
+  for (const chapter of course.chapters) {
+    for (const track of chapter.tracks)
+      for (const clip of track.clips) if (clip.type === 'question') ids.add(clip.question.id);
+    for (const question of chapter.quiz?.questions ?? []) ids.add(question.id);
+  }
+  return ids;
 }
 
 function toOperationError(error: unknown): OperationError {

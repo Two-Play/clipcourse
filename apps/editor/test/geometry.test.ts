@@ -13,7 +13,7 @@ import {
 } from '../src/geometry.js';
 
 const course: Course = {
-  formatVersion: 2,
+  formatVersion: 3,
   id: 'c',
   title: 'C',
   language: 'en',

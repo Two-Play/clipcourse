@@ -14,7 +14,7 @@ import {
   type Operation,
 } from '@clipcourse/editor-core';
 import { exportScorm, packageFileName } from '@clipcourse/exporter';
-import schema from '@clipcourse/format/schema/course.v2.schema.json' with { type: 'json' };
+import schema from '@clipcourse/format/schema/course.v3.schema.json' with { type: 'json' };
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { FORMAT_GUIDE } from './guide.js';

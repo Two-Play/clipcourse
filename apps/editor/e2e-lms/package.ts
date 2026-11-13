@@ -20,7 +20,7 @@ export function testCourse(id: string): Course {
     style: { fontSize: 96, color: '#ffffff', align: 'center' as const },
   });
   return {
-    formatVersion: 2,
+    formatVersion: 3,
     id,
     title: `Clipcourse LMS test ${id}`,
     language: 'en',
