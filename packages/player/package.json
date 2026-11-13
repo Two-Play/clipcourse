@@ -15,5 +15,8 @@
   },
   "dependencies": {
     "@clipcourse/format": "workspace:*"
+  },
+  "devDependencies": {
+    "immer": "11.2.10"
   }
 }

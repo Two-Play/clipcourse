@@ -8,12 +8,13 @@ export const PLAYER_CSS = `
 .ccp-root:focus{outline:none}
 .ccp-root *,.ccp-root *::before,.ccp-root *::after{box-sizing:border-box}
 .ccp-viewport{position:relative;flex:1 1 auto;min-height:0;overflow:hidden}
-.ccp-stage{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden}
+.ccp-stage{position:absolute;left:0;top:0;transform-origin:0 0;overflow:hidden;
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-size:16px;line-height:1.25;color:#fff;text-align:left}
 .ccp-layer{position:absolute;inset:0}
 .ccp-clip{position:absolute;display:flex;flex-direction:column;overflow:hidden}
 .ccp-clip img,.ccp-clip video{display:block;width:100%;height:100%}
 .ccp-clip-shape{overflow:visible}
-.ccp-text{margin:0;white-space:pre-wrap;overflow-wrap:break-word;font-weight:inherit;color:#fff}
+.ccp-text{margin:0;padding:0;text-transform:none;letter-spacing:normal;text-indent:0;font-family:inherit;line-height:1.25;border:0;background:none;white-space:pre-wrap;overflow-wrap:break-word;font-weight:inherit;color:#fff}
 .ccp-clip-box .ccp-text{color:inherit}
 .ccp-audio{display:none}
 .ccp-captions{position:absolute;left:50%;bottom:5%;transform:translateX(-50%);z-index:100000;

@@ -1,0 +1,30 @@
+{
+  "name": "@clipcourse/editor",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clipcourse editor: build courses on a timeline",
+  "author": "Philippe",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc -p tsconfig.json",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "@clipcourse/editor-core": "workspace:*",
+    "@clipcourse/format": "workspace:*",
+    "@clipcourse/player": "workspace:*",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
+    "zustand": "5.1.0"
+  },
+  "devDependencies": {
+    "@types/react": "19.3.0",
+    "@types/react-dom": "19.3.0",
+    "@vitejs/plugin-react": "6.3.0",
+    "fake-indexeddb": "6.2.8"
+  }
+}

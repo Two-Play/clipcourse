@@ -1,0 +1,106 @@
+// SPDX-License-Identifier: AGPL-3.0-only
+/**
+ * Editor UI strings. English only for now; every visible string goes
+ * through t() so translations can be added as additional dictionaries.
+ */
+const en = {
+  appName: 'Clipcourse',
+  new: 'New',
+  open: 'Open…',
+  openExample: 'Open example',
+  save: 'Save',
+  undo: 'Undo',
+  redo: 'Redo',
+  preview: 'Preview',
+  closePreview: 'Close preview',
+  play: 'Play',
+  pause: 'Pause',
+  addText: 'Text',
+  addBox: 'Box',
+  addShape: 'Shape',
+  importMedia: 'Import media…',
+  assets: 'Media',
+  noAssets: 'Import images, video, audio or captions (.vtt). Drag them onto a track.',
+  addTrack: 'Add track',
+  deleteTrack: 'Delete track',
+  hideTrack: 'Hide track',
+  showTrack: 'Show track',
+  muteTrack: 'Mute track',
+  unmuteTrack: 'Unmute track',
+  moveTrackUp: 'Move track to front',
+  moveTrackDown: 'Move track to back',
+  trackName: 'Track name',
+  zoom: 'Zoom',
+  snapping: 'Snap',
+  split: 'Split at playhead',
+  duplicate: 'Duplicate',
+  delete: 'Delete',
+  chapter: 'Chapter',
+  course: 'Course',
+  properties: 'Properties',
+  title: 'Title',
+  language: 'Language',
+  duration: 'Duration (s)',
+  start: 'Start (s)',
+  fitToContent: 'Fit to content',
+  transition: 'At the end',
+  transitionWait: 'Wait for “Continue”',
+  transitionAuto: 'Continue automatically',
+  background: 'Background',
+  text: 'Text',
+  role: 'Text type',
+  roleParagraph: 'Paragraph',
+  roleHeading: 'Heading',
+  fontSize: 'Font size',
+  color: 'Color',
+  align: 'Alignment',
+  fill: 'Fill',
+  stroke: 'Outline',
+  strokeWidth: 'Outline width',
+  radius: 'Corner radius',
+  shape: 'Shape',
+  media: 'Media file',
+  altText: 'Alternative text',
+  altHint: 'Describe the image for screen reader users. Leave empty if it is decorative.',
+  captions: 'Captions',
+  none: 'None',
+  volume: 'Volume',
+  fit: 'Fit',
+  layout: 'Position and size',
+  advanced: 'More options',
+  opacity: 'Opacity',
+  rotation: 'Rotation (°)',
+  nothingSelected: 'Select a clip on the timeline or on the stage to edit it.',
+  unsaved: 'Unsaved changes',
+  saved: 'All changes saved to file',
+  draftRestored: 'Your last working copy was restored.',
+  confirmDiscard: 'Discard unsaved changes?',
+  importFailed: 'Some files could not be imported:',
+  openFailed: 'The project could not be opened:',
+  timeline: 'Timeline',
+  stage: 'Stage',
+  clipLabelImage: 'Image',
+  clipLabelVideo: 'Video',
+  clipLabelAudio: 'Audio',
+  clipLabelShape: 'Shape',
+  clipLabelBox: 'Box',
+  clipLabelText: 'Text',
+  chapterEnd: 'Chapter end – drag to change the length',
+  shortcuts:
+    'Space: play/pause · Delete: remove · Ctrl+Z / Ctrl+Shift+Z: undo/redo · S: split · Ctrl+D: duplicate · ←/→: move playhead',
+};
+
+export type MessageKey = keyof typeof en;
+
+let messages: Record<MessageKey, string> = en;
+
+export function t(key: MessageKey, values: Record<string, string | number> = {}): string {
+  return messages[key].replace(/\{(\w+)\}/g, (m, k: string) =>
+    k in values ? String(values[k]) : m,
+  );
+}
+
+/** For future translations. */
+export function setMessages(next: Partial<Record<MessageKey, string>>) {
+  messages = { ...en, ...next };
+}

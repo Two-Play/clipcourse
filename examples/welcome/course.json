@@ -3,7 +3,11 @@
   "id": "welcome_to_clipcourse",
   "title": "Welcome to Clipcourse",
   "language": "en",
-  "stage": { "width": 1920, "height": 1080, "background": "#0f1320" },
+  "stage": {
+    "width": 1920,
+    "height": 1080,
+    "background": "#0f1320"
+  },
   "assets": {
     "logo": {
       "kind": "image",
@@ -23,9 +27,22 @@
       "mime": "video/mp4",
       "duration": 8000
     },
-    "testpattern_cc": { "kind": "captions", "src": "assets/testpattern.vtt", "mime": "text/vtt" },
-    "chord": { "kind": "audio", "src": "assets/chord.m4a", "mime": "audio/mp4", "duration": 6000 },
-    "chord_cc": { "kind": "captions", "src": "assets/chord.vtt", "mime": "text/vtt" }
+    "testpattern_cc": {
+      "kind": "captions",
+      "src": "assets/testpattern.vtt",
+      "mime": "text/vtt"
+    },
+    "chord": {
+      "kind": "audio",
+      "src": "assets/chord.m4a",
+      "mime": "audio/mp4",
+      "duration": 6000
+    },
+    "chord_cc": {
+      "kind": "captions",
+      "src": "assets/chord.vtt",
+      "mime": "text/vtt"
+    }
   },
   "courseLayer": {
     "background": [],
@@ -41,7 +58,12 @@
             "alt": "",
             "start": 0,
             "duration": 3600000,
-            "frame": { "x": 1800, "y": 40, "width": 80, "height": 80 },
+            "frame": {
+              "x": 1800,
+              "y": 40,
+              "width": 80,
+              "height": 80
+            },
             "opacity": 0.8
           }
         ]
@@ -53,7 +75,9 @@
       "id": "welcome",
       "title": "Welcome",
       "duration": 6000,
-      "transition": { "mode": "wait" },
+      "transition": {
+        "mode": "wait"
+      },
       "tracks": [
         {
           "id": "welcome_bg",
@@ -67,7 +91,12 @@
               "radius": 32,
               "start": 0,
               "duration": 6000,
-              "frame": { "x": 160, "y": 140, "width": 1600, "height": 800 }
+              "frame": {
+                "x": 160,
+                "y": 140,
+                "width": 1600,
+                "height": 800
+              }
             }
           ]
         },
@@ -88,17 +117,43 @@
               },
               "start": 0,
               "duration": 6000,
-              "frame": { "x": 160, "y": 300, "width": 1600, "height": 160 }
-            },
+              "frame": {
+                "x": 160,
+                "y": 300,
+                "width": 1600,
+                "height": 160
+              }
+            }
+          ]
+        },
+        {
+          "id": "welcome_subtitle",
+          "name": "Subtitle",
+          "clips": [
             {
               "id": "welcome_sub",
               "type": "text",
               "text": "Courses built like videos – on a timeline.",
-              "style": { "fontSize": 56, "color": "#a1a7b3", "align": "center" },
+              "style": {
+                "fontSize": 56,
+                "color": "#a1a7b3",
+                "align": "center"
+              },
               "start": 1500,
               "duration": 4500,
-              "frame": { "x": 160, "y": 480, "width": 1600, "height": 100 }
-            },
+              "frame": {
+                "x": 160,
+                "y": 480,
+                "width": 1600,
+                "height": 100
+              }
+            }
+          ]
+        },
+        {
+          "id": "welcome_hints",
+          "name": "Hint",
+          "clips": [
             {
               "id": "welcome_hint",
               "type": "box",
@@ -114,7 +169,12 @@
               },
               "start": 3500,
               "duration": 2500,
-              "frame": { "x": 560, "y": 680, "width": 800, "height": 110 }
+              "frame": {
+                "x": 560,
+                "y": 680,
+                "width": 800,
+                "height": 110
+              }
             }
           ]
         },
@@ -130,7 +190,13 @@
               "strokeWidth": 10,
               "start": 3500,
               "duration": 2500,
-              "frame": { "x": 1400, "y": 715, "width": 300, "height": 40, "rotation": 30 }
+              "frame": {
+                "x": 1400,
+                "y": 715,
+                "width": 300,
+                "height": 40,
+                "rotation": 30
+              }
             }
           ]
         }
@@ -140,7 +206,9 @@
       "id": "timeline",
       "title": "The timeline is the beat",
       "duration": 9000,
-      "transition": { "mode": "auto" },
+      "transition": {
+        "mode": "auto"
+      },
       "tracks": [
         {
           "id": "timeline_images",
@@ -153,7 +221,12 @@
               "fit": "contain",
               "start": 0,
               "duration": 9000,
-              "frame": { "x": 160, "y": 420, "width": 1600, "height": 600 }
+              "frame": {
+                "x": 160,
+                "y": 420,
+                "width": 1600,
+                "height": 600
+              }
             }
           ]
         },
@@ -166,30 +239,57 @@
               "type": "text",
               "role": "heading",
               "text": "Every chapter has its own timeline.",
-              "style": { "fontSize": 72, "fontWeight": 700, "color": "#ffffff" },
+              "style": {
+                "fontSize": 72,
+                "fontWeight": 700,
+                "color": "#ffffff"
+              },
               "start": 0,
               "duration": 3000,
-              "frame": { "x": 160, "y": 140, "width": 1600, "height": 120 }
+              "frame": {
+                "x": 160,
+                "y": 140,
+                "width": 1600,
+                "height": 120
+              }
             },
             {
               "id": "timeline_t2",
               "type": "text",
               "role": "heading",
               "text": "Clips start and end at exact times.",
-              "style": { "fontSize": 72, "fontWeight": 700, "color": "#ffffff" },
+              "style": {
+                "fontSize": 72,
+                "fontWeight": 700,
+                "color": "#ffffff"
+              },
               "start": 3000,
               "duration": 3000,
-              "frame": { "x": 160, "y": 140, "width": 1600, "height": 120 }
+              "frame": {
+                "x": 160,
+                "y": 140,
+                "width": 1600,
+                "height": 120
+              }
             },
             {
               "id": "timeline_t3",
               "type": "text",
               "role": "heading",
               "text": "This chapter continues automatically.",
-              "style": { "fontSize": 72, "fontWeight": 700, "color": "#06d6a0" },
+              "style": {
+                "fontSize": 72,
+                "fontWeight": 700,
+                "color": "#06d6a0"
+              },
               "start": 6000,
               "duration": 3000,
-              "frame": { "x": 160, "y": 140, "width": 1600, "height": 120 }
+              "frame": {
+                "x": 160,
+                "y": 140,
+                "width": 1600,
+                "height": 120
+              }
             }
           ]
         },
@@ -205,7 +305,12 @@
               "strokeWidth": 8,
               "start": 3000,
               "duration": 3000,
-              "frame": { "x": 1060, "y": 420, "width": 180, "height": 120 }
+              "frame": {
+                "x": 1060,
+                "y": 420,
+                "width": 180,
+                "height": 120
+              }
             }
           ]
         }
@@ -215,7 +320,9 @@
       "id": "media",
       "title": "Video, audio and captions",
       "duration": 10000,
-      "transition": { "mode": "wait" },
+      "transition": {
+        "mode": "wait"
+      },
       "tracks": [
         {
           "id": "media_video",
@@ -229,7 +336,12 @@
               "fit": "contain",
               "start": 0,
               "duration": 8000,
-              "frame": { "x": 160, "y": 260, "width": 1100, "height": 619 }
+              "frame": {
+                "x": 160,
+                "y": 260,
+                "width": 1100,
+                "height": 619
+              }
             }
           ]
         },
@@ -242,11 +354,26 @@
               "type": "text",
               "role": "heading",
               "text": "Video and audio follow the timeline.",
-              "style": { "fontSize": 64, "fontWeight": 700, "color": "#ffffff" },
+              "style": {
+                "fontSize": 64,
+                "fontWeight": 700,
+                "color": "#ffffff"
+              },
               "start": 0,
               "duration": 10000,
-              "frame": { "x": 160, "y": 100, "width": 1600, "height": 120 }
-            },
+              "frame": {
+                "x": 160,
+                "y": 100,
+                "width": 1600,
+                "height": 120
+              }
+            }
+          ]
+        },
+        {
+          "id": "media_notes",
+          "name": "Note",
+          "clips": [
             {
               "id": "media_note",
               "type": "box",
@@ -256,10 +383,19 @@
               "strokeWidth": 4,
               "radius": 16,
               "padding": 28,
-              "style": { "fontSize": 40, "color": "#ffffff", "verticalAlign": "middle" },
+              "style": {
+                "fontSize": 40,
+                "color": "#ffffff",
+                "verticalAlign": "middle"
+              },
               "start": 1000,
               "duration": 9000,
-              "frame": { "x": 1320, "y": 260, "width": 440, "height": 300 }
+              "frame": {
+                "x": 1320,
+                "y": 260,
+                "width": 440,
+                "height": 300
+              }
             }
           ]
         },

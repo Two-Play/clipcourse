@@ -16,7 +16,7 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "pnpm --filter @clipcourse/player-demo run test:e2e",
+    "test:e2e": "pnpm -r --if-present run test:e2e",
     "licenses:check": "node scripts/licenses.mjs --check",
     "licenses:write": "node scripts/licenses.mjs --write"
   },

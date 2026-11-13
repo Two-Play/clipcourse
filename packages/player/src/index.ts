@@ -18,3 +18,7 @@ export { createAnimationFrameClock, createManualClock, MAX_FRAME_DELTA } from '.
 export type { Clock } from './clock.js';
 export { defaultStrings, formatTime } from './i18n.js';
 export type { PlayerStrings } from './i18n.js';
+export { Stage } from './dom/stage.js';
+export type { StageOptions } from './dom/stage.js';
+export type { AssetResolver } from './dom/clips.js';
+export { injectStyles } from './dom/styles.js';
