@@ -95,3 +95,19 @@ test('logs LMS errors as diagnostics', () => {
   expect(lms.api.LMSSetValue('cmi.core.entry', 'x')).toBe('false');
   expect(lms.api.LMSGetLastError()).toBe('403');
 });
+
+test.each(['1.2', '2004'] as const)(
+  'SCORM %s: exit=suspend is committed even if terminate never arrives',
+  (version) => {
+    const record = createLmsRecord();
+    const lms = createMockLms(version, record);
+    const conn = connect({ version, api: lms.api } as never)!;
+    conn.saveProgress({ suspendData: '1~0~0~1', location: 'a', progress: 0.5 });
+    conn.commit();
+    // Window closed without Terminate: the LMS keeps the last commit.
+    const next = createMockLms(version, record);
+    const again = connect({ version, api: next.api } as never)!;
+    expect(again.resumed).toBe(true);
+    expect(again.getSuspendData()).toBe('1~0~0~1');
+  },
+);

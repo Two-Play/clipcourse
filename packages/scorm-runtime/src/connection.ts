@@ -116,6 +116,11 @@ export function connect(found: FoundApi, now: () => number = Date.now): LmsConne
   const resumed = get(el.entry) === 'resume';
   let active = true;
 
+  // Ask for a resumable exit right away, so every commit carries it. Some
+  // LMS players save asynchronously and lose the last call when the page
+  // unloads; the bookmark then still works on the next launch.
+  set(el.exit, 'suspend');
+
   // Mark the attempt as started.
   if (
     !completed &&
