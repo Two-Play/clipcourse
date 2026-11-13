@@ -1,0 +1,31 @@
+{
+  "name": "@clipcourse/mcp-server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Clipcourse MCP server: lets AI assistants create, review and export courses",
+  "author": "Philippe",
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "bin": {
+    "clipcourse-mcp": "dist/clipcourse-mcp.js"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "pnpm --filter @clipcourse/scorm-runtime build && vite build",
+    "start": "node dist/clipcourse-mcp.js"
+  },
+  "dependencies": {
+    "@clipcourse/editor-core": "workspace:*",
+    "@clipcourse/exporter": "workspace:*",
+    "@clipcourse/format": "workspace:*",
+    "@clipcourse/scorm-runtime": "workspace:*",
+    "@modelcontextprotocol/sdk": "1.32.2",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "fflate": "0.8.3"
+  }
+}
