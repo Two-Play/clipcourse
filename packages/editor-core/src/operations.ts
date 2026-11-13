@@ -155,8 +155,10 @@ export function patchClip(clip: Clip, props: ClipProps) {
       (value as { kind: unknown }).kind !==
         (target.question as { kind?: unknown } | undefined)?.kind
     ) {
-      // A different kind has different fields: replace instead of merging.
-      target[key] = structuredClone(value);
+      // A different kind has different fields: replace instead of merging
+      // (keeping the question id unless a new one is given).
+      const previousId = (target.question as { id?: string } | undefined)?.id;
+      target[key] = { ...(previousId ? { id: previousId } : {}), ...structuredClone(value) };
     } else if (MERGED_PROPS.includes(key) && typeof value === 'object' && !Array.isArray(value)) {
       const base = (target[key] ?? {}) as Record<string, unknown>;
       const merged: Record<string, unknown> = { ...(isDraft(base) ? current(base) : base) };
@@ -520,9 +522,10 @@ export function executeOperation(ctx: OperationContext, operation: Operation): O
       }
       case 'update_quiz_question':
         recipe = cmd.updateQuizQuestion(operation.chapterId, operation.questionId, (question) => {
-          const patched = {
-            ...structuredClone(isDraft(question) ? current(question) : question),
-          } as Record<string, unknown>;
+          const base = structuredClone(isDraft(question) ? current(question) : question);
+          // Another kind has other fields: start over instead of mixing them.
+          const kindChange = 'kind' in operation.props && operation.props.kind !== base.kind;
+          const patched = (kindChange ? { id: base.id } : { ...base }) as Record<string, unknown>;
           for (const [key, value] of Object.entries(operation.props)) {
             if (key === 'id') throw new OperationError('"id" cannot be changed');
             if (value === null) delete patched[key];

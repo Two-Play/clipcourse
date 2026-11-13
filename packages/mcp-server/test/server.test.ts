@@ -67,12 +67,14 @@ describe('tools', () => {
       'add_chapter',
       'add_clip',
       'add_marker',
+      'add_quiz_question',
       'add_track',
       'create_project',
       'delete_chapter',
       'delete_clips',
       'delete_marker',
       'delete_media',
+      'delete_quiz_question',
       'delete_track',
       'duplicate_chapter',
       'duplicate_clip',
@@ -83,9 +85,12 @@ describe('tools', () => {
       'list_templates',
       'move_chapter',
       'move_clip',
+      'move_quiz_question',
       'redo',
       'review_course',
+      'set_assessment',
       'set_course',
+      'set_quiz',
       'split_clip',
       'trim_clip',
       'undo',
@@ -93,6 +98,7 @@ describe('tools', () => {
       'update_clip',
       'update_marker',
       'update_media',
+      'update_quiz_question',
       'update_track',
     ]);
     const addClip = tools.find((t) => t.name === 'add_clip')!;
@@ -153,6 +159,138 @@ describe('tools', () => {
     expect(listed.projects).toEqual([
       { project: 'safety', title: 'Safety basics', chapters: 2, open: true },
     ]);
+  });
+
+  test('builds question clips, a quiz chapter and a passing score', async () => {
+    const { chapterId } = await call('create_project', { path: 'quiz', title: 'Quiz' });
+    await call('add_clip', {
+      project: 'quiz',
+      type: 'text',
+      chapterId,
+      start: 0,
+      duration: 4000,
+      props: { text: 'Fire safety', role: 'heading' },
+    });
+    const clip = await call('add_clip', {
+      project: 'quiz',
+      type: 'question',
+      chapterId,
+      start: 4000,
+      props: {
+        question: {
+          kind: 'multiple',
+          prompt: 'Which extinguishers work on electrical fires?',
+          choices: [
+            { id: 'co2', text: 'CO2' },
+            { id: 'water', text: 'Water' },
+            { id: 'powder', text: 'Powder' },
+          ],
+          correct: ['co2', 'powder'],
+          attempts: 2,
+          feedback: { incorrect: 'Water conducts electricity.' },
+        },
+      },
+    });
+    const clipId = clip.created.clipId as string;
+    await call('update_clip', { project: 'quiz', clipId, props: { question: { points: 2 } } });
+
+    const quizChapter = (await call('add_chapter', { project: 'quiz', title: 'Final test' }))
+      .created.chapterId as string;
+    const quiz = await call('set_quiz', { project: 'quiz', chapterId: quizChapter, retries: 1 });
+    const sample = quiz.created.questionId as string;
+    await call('update_quiz_question', {
+      project: 'quiz',
+      chapterId: quizChapter,
+      questionId: sample,
+      props: { kind: 'text', prompt: 'Emergency number in the EU?', answers: ['112'] },
+    });
+    const order = await call('add_quiz_question', {
+      project: 'quiz',
+      chapterId: quizChapter,
+      question: {
+        kind: 'order',
+        prompt: 'Put the steps in order',
+        items: [
+          { id: 'alarm', text: 'Raise the alarm' },
+          { id: 'leave', text: 'Leave the building' },
+          { id: 'meet', text: 'Go to the meeting point' },
+        ],
+      },
+    });
+    await call('move_quiz_question', {
+      project: 'quiz',
+      chapterId: quizChapter,
+      questionId: order.created.questionId,
+      index: 0,
+    });
+
+    // Without a passing score the review suggests one.
+    let review = await call('review_course', { project: 'quiz' });
+    expect(review.issues.map((i: { code: string }) => i.code)).toContain('no-passing-score');
+    await call('set_assessment', { project: 'quiz', passingScore: 75 });
+    review = await call('review_course', { project: 'quiz' });
+    expect(review.summary).toBe('No issues found');
+
+    const saved = JSON.parse(readFileSync(join(root, 'quiz', 'course.json'), 'utf8'));
+    expect(saved.assessment).toEqual({ passingScore: 75 });
+    const savedClip = saved.chapters[0].tracks
+      .flatMap((t: { clips: unknown[] }) => t.clips)
+      .find((c: { id: string }) => c.id === clipId);
+    expect(savedClip.question).toMatchObject({ kind: 'multiple', points: 2, attempts: 2 });
+    expect(saved.chapters[1].quiz.retries).toBe(1);
+    expect(saved.chapters[1].quiz.questions.map((q: { kind: string }) => q.kind)).toEqual([
+      'order',
+      'text',
+    ]);
+    // A kind change replaces the question instead of mixing fields.
+    expect(saved.chapters[1].quiz.questions[1]).toEqual({
+      id: sample,
+      kind: 'text',
+      prompt: 'Emergency number in the EU?',
+      answers: ['112'],
+    });
+
+    const outline = (await call('get_course', { project: 'quiz' })).text as string;
+    expect(outline).toContain('passing score 75 %');
+    expect(outline).toContain(
+      'question: multiple "Which extinguishers work on electrical fires?" (2 pt, attempts 2) ✓co2:"CO2" ·water:"Water" ✓powder:"Powder"',
+    );
+    expect(outline).toContain('quiz chapter: 2 question(s), 1 retry');
+    expect(outline).toContain(
+      '2. text "Emergency number in the EU?" (1 pt, attempts 1) accepts "112"',
+    );
+
+    // Invalid answers are rejected and nothing changes.
+    await expect(
+      call('update_quiz_question', {
+        project: 'quiz',
+        chapterId: quizChapter,
+        questionId: sample,
+        props: { answers: [] },
+      }),
+    ).rejects.toThrow();
+    await expect(
+      call('add_clip', {
+        project: 'quiz',
+        type: 'question',
+        chapterId,
+        props: {
+          question: {
+            kind: 'single',
+            prompt: 'X',
+            choices: [
+              { id: 'a', text: 'A' },
+              { id: 'b', text: 'B' },
+            ],
+            correct: 'zzz',
+          },
+        },
+      }),
+    ).rejects.toThrow(/zzz|correct/);
+
+    const exported = await call('export_scorm', { project: 'quiz', version: '2004' });
+    const files = unzipSync(readFileSync(join(root, exported.file)));
+    expect(strFromU8(files['course.js']!)).toContain('"passingScore":75');
   });
 
   test('undo reverts the last change on disk', async () => {

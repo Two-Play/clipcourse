@@ -1,8 +1,42 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 /** Compact descriptions of a course for AI assistants and logs. */
-import type { Clip, Course, Track } from '@clipcourse/format';
+import type { Clip, Course, Question, Track } from '@clipcourse/format';
 
 const seconds = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
+
+const short = (text: string) => text.replace(/\s+/g, ' ').slice(0, 80);
+
+/** One line per question: kind, prompt, scoring, answers with the correct ones marked. */
+function questionSummary(q: Question): string {
+  const scoring = [
+    q.scored === false ? 'not scored' : `${q.points ?? 1} pt`,
+    `attempts ${q.attempts === 0 ? 'unlimited' : (q.attempts ?? 1)}`,
+  ].join(', ');
+  let answers = '';
+  switch (q.kind) {
+    case 'single':
+    case 'multiple': {
+      const correct = q.kind === 'single' ? [q.correct] : q.correct;
+      answers = q.choices
+        .map((c) => `${correct.includes(c.id) ? '✓' : '·'}${c.id}:"${short(c.text)}"`)
+        .join(' ');
+      break;
+    }
+    case 'text':
+      answers = `accepts ${q.answers.map((a) => `"${a}"`).join(' | ')}`;
+      break;
+    case 'order':
+      answers = `order ${q.items.map((i) => `${i.id}:"${short(i.text)}"`).join(' → ')}`;
+      break;
+    case 'match':
+      answers = q.pairs.map((p) => `${p.id}:"${short(p.left)}"="${short(p.right)}"`).join(' ');
+      break;
+    case 'hotspot':
+      answers = `image ${q.assetId}, areas ${q.areas.map((a) => `${q.correct.includes(a.id) ? '✓' : '·'}${a.id}:"${a.label}"`).join(' ')}`;
+      break;
+  }
+  return `${q.kind} "${short(q.prompt)}" (${scoring}) ${answers} {${q.id}}`;
+}
 
 function clipSummary(clip: Clip, course: Course): string {
   const range = `${seconds(clip.start)}–${seconds(clip.start + clip.duration)}`;
@@ -15,6 +49,7 @@ function clipSummary(clip: Clip, course: Course): string {
   } else if (clip.type === 'shape') what = `shape ${clip.shape}`;
   else if (clip.type === 'highlight')
     what = `highlight ${clip.kind}${clip.label ? ` "${clip.label}"` : ''}`;
+  else if (clip.type === 'question') what = `question: ${questionSummary(clip.question)}`;
   const anim =
     clip.type !== 'audio' && clip.animations
       ? ` anim[${[clip.animations.in && `in:${clip.animations.in.type}`, clip.animations.out && `out:${clip.animations.out.type}`].filter(Boolean).join(',')}]`
@@ -37,7 +72,7 @@ function trackLines(tracks: Track[], course: Course, label: string): string[] {
 /** A readable outline of the whole course, or of one chapter. */
 export function describeTimeline(course: Course, chapterId?: string): string {
   const lines: string[] = [
-    `Course "${course.title}" {${course.id}}, ${course.language}, stage ${course.stage.width}×${course.stage.height}, ${course.chapters.length} chapter(s)`,
+    `Course "${course.title}" {${course.id}}, ${course.language}, stage ${course.stage.width}×${course.stage.height}, ${course.chapters.length} chapter(s)${course.assessment ? `, passing score ${course.assessment.passingScore} %` : ''}`,
   ];
   const chapters = chapterId ? course.chapters.filter((c) => c.id === chapterId) : course.chapters;
   if (chapterId && chapters.length === 0) throw new Error(`Unknown chapter "${chapterId}"`);
@@ -51,6 +86,13 @@ export function describeTimeline(course: Course, chapterId?: string): string {
     lines.push(
       `Chapter ${index} "${chapter.title}" {${chapter.id}}, ${seconds(chapter.duration)}, at the end: ${chapter.transition.mode === 'wait' ? 'wait for Continue' : 'continue automatically'}`,
     );
+    if (chapter.quiz) {
+      const { quiz } = chapter;
+      lines.push(
+        `  quiz chapter: ${quiz.questions.length} question(s)${quiz.shuffle ? ', shuffled' : ''}${quiz.retries ? `, ${quiz.retries} retr${quiz.retries === 1 ? 'y' : 'ies'}` : ''}`,
+      );
+      quiz.questions.forEach((q, i) => lines.push(`    ${i + 1}. ${questionSummary(q)}`));
+    }
     for (const marker of chapter.markers ?? [])
       lines.push(`  marker ${seconds(marker.time)} "${marker.title}" {${marker.id}}`);
     lines.push(...trackLines(chapter.tracks, course, 'chapter'));
