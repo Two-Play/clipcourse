@@ -11,3 +11,7 @@ export {
   findProjects,
 } from './folder.js';
 export { readLocalMedia, mp4Duration } from './media.js';
+export { startHttpServer, loadOrCreateToken, defaultTokenFile, DEFAULT_HTTP_PORT } from './http.js';
+export type { HttpServerOptions, RunningHttpServer } from './http.js';
+export { downloadMedia, isBlockedAddress, DownloadError } from './download.js';
+export type { DownloadOptions } from './download.js';
