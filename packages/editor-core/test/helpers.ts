@@ -9,7 +9,7 @@ export function boxClip(id: string, start: number, duration: number): Clip {
 
 export function testCourse(): Course {
   return {
-    formatVersion: 2,
+    formatVersion: 3,
     id: 'c',
     title: 'Course',
     language: 'en',

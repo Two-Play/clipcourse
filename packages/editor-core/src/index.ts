@@ -11,3 +11,4 @@ export * from './operations.js';
 export * from './review.js';
 export * from './describe.js';
 export * from './bridge-protocol.js';
+export * from './questions.js';

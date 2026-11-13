@@ -3,11 +3,19 @@
  * Public player: wires the controller (state), the stage (picture and media)
  * and the controls (chrome) together.
  */
-import { FORMAT_VERSION, type Asset, type Course } from '@clipcourse/format';
+import {
+  FORMAT_VERSION,
+  type Asset,
+  type Course,
+  type Question,
+  type QuestionClip,
+} from '@clipcourse/format';
 import { createAnimationFrameClock, type Clock } from './clock.js';
 import { Controller, type ControllerEvent, type PlayerState } from './core/controller.js';
 import { evaluate } from './core/evaluate.js';
 import { decodeProgress, encodeProgress, type ProgressStore } from './core/progress.js';
+import { collectQuestions, shuffled, type AnswerState, type Response } from './core/quiz.js';
+import { renderQuestion } from './dom/question.js';
 import type { AssetResolver } from './dom/clips.js';
 import { Stage } from './dom/stage.js';
 import { ICONS, injectStyles } from './dom/styles.js';
@@ -48,6 +56,8 @@ export interface Player {
   readonly course: Course;
   readonly element: HTMLElement;
   getState(): PlayerState;
+  /** Answers a question (as if the learner submitted the form). */
+  answer(questionId: string, response: Response): AnswerState | null;
   play(): void;
   pause(): void;
   toggle(): void;
@@ -84,8 +94,11 @@ export function createPlayer(
 
   injectStyles(doc);
 
-  const restored = decodeProgress(store?.load(), course.chapters.length);
+  const questionIds = collectQuestions(course).map((ref) => ref.question.id);
+  const restored = decodeProgress(store?.load(), course.chapters.length, questionIds);
   const controller = new Controller(course, restored);
+  /** Question clip hosts currently on the stage, to re-render after answers. */
+  const questionHosts = new Map<string, { clip: QuestionClip; host: HTMLElement }>();
   let started = false;
   let captionsOn = options.captions === true;
   let sinceSave = 0;
@@ -131,7 +144,159 @@ export function createPlayer(
       errorBox.hidden = false;
       emit({ type: 'mediaerror', clipId });
     },
+    strings,
+    mountQuestion: (clip, host) => {
+      questionHosts.set(clip.id, { clip, host });
+      mountQuestionClip(clip, host, false);
+    },
   });
+
+  function mountQuestionClip(clip: QuestionClip, host: HTMLElement, focusFeedback: boolean) {
+    const state = controller.state.answers[clip.question.id];
+    host.replaceChildren(
+      renderQuestion(doc, {
+        question: clip.question,
+        state,
+        strings,
+        assets: course.assets,
+        imageUrl: resolveAsset,
+        interactive: true,
+        focusFeedback,
+        onSubmit: (response) => controller.answer(clip.question.id, response),
+        continueLabel: strings.continue,
+        onContinue: () => {
+          started = true;
+          controller.play();
+        },
+      }),
+    );
+  }
+
+  // --- Quiz chapters ------------------------------------------------------------
+  const quizLayer = h('div', 'ccp-quiz');
+  quizLayer.hidden = true;
+  let quizKey = '';
+
+  function quizOrder(chapterIndex: number): Question[] {
+    const chapter = course.chapters[chapterIndex]!;
+    const questions = chapter.quiz?.questions ?? [];
+    const round = controller.state.quizRetries[chapterIndex] ?? 0;
+    return chapter.quiz?.shuffle ? shuffled(questions, `${chapter.id}#${round}`) : questions;
+  }
+
+  function renderQuiz(focus: boolean) {
+    const state = controller.state;
+    const chapter = course.chapters[state.chapterIndex]!;
+    if (!chapter.quiz) {
+      quizLayer.hidden = true;
+      quizKey = '';
+      return;
+    }
+    quizLayer.hidden = false;
+    const order = quizOrder(state.chapterIndex);
+    const answers = state.answers;
+    const firstOpen = order.findIndex((q) => !answers[q.id]?.done);
+    // While a question was just answered (done) we keep showing it with feedback.
+    const shown =
+      quizShown && order.find((q) => q.id === quizShown) && state.status === 'quiz'
+        ? quizShown
+        : null;
+    const current = shown ? order.findIndex((q) => q.id === shown) : firstOpen;
+    const key = `${state.chapterIndex}|${state.status}|${current}|${JSON.stringify(answers[order[current]?.id ?? ''] ?? null)}|${state.quizRetries[state.chapterIndex] ?? 0}`;
+    if (key === quizKey) return;
+    quizKey = key;
+    const panel = h('div', 'ccp-quiz-panel', { role: 'region', 'aria-label': chapter.title });
+
+    if (state.status === 'quiz' && current >= 0) {
+      const question = order[current]!;
+      const progressLine = h('p', 'ccp-quiz-progress');
+      progressLine.textContent = format(strings.questionOf, {
+        index: current + 1,
+        count: order.length,
+      });
+      const last = order.every((q, i) => i === current || answers[q.id]?.done);
+      panel.append(
+        progressLine,
+        renderQuestion(doc, {
+          question,
+          state: answers[question.id],
+          strings,
+          assets: course.assets,
+          imageUrl: resolveAsset,
+          interactive: true,
+          focusFeedback: focus,
+          onSubmit: (response) => {
+            quizShown = question.id;
+            controller.answer(question.id, response);
+          },
+          continueLabel: last ? strings.finishQuiz : strings.nextQuestion,
+          onContinue: () => {
+            quizShown = null;
+            if (last) controller.finishQuiz();
+            else renderQuiz(true);
+          },
+        }),
+      );
+    } else {
+      // Result screen.
+      const quizQuestions = chapter.quiz.questions;
+      const correct = quizQuestions.filter((q) => answers[q.id]?.correct).length;
+      let earned = 0;
+      let possible = 0;
+      for (const q of quizQuestions) {
+        if (q.scored === false) continue;
+        possible += q.points ?? 1;
+        if (answers[q.id]?.correct) earned += q.points ?? 1;
+      }
+      const percent = possible ? Math.round((earned / possible) * 1000) / 10 : null;
+      const heading = h('h2', 'ccp-quiz-title');
+      heading.textContent = chapter.title;
+      heading.tabIndex = -1;
+      const result = h('p', 'ccp-quiz-result');
+      result.textContent = format(strings.quizResult, { correct, count: quizQuestions.length });
+      panel.append(heading, result);
+      if (percent !== null) {
+        const scoreLine = h('p', 'ccp-quiz-score');
+        scoreLine.textContent = format(strings.quizScore, { percent });
+        panel.append(scoreLine);
+        if (course.assessment) {
+          const verdict = h(
+            'p',
+            `ccp-quiz-verdict ${percent >= course.assessment.passingScore ? 'is-passed' : 'is-failed'}`,
+          );
+          verdict.textContent =
+            percent >= course.assessment.passingScore
+              ? strings.quizPassed
+              : format(strings.quizFailed, { required: course.assessment.passingScore });
+          panel.append(verdict);
+        }
+      }
+      const actions = h('div', 'ccp-q-actions');
+      const retriesLeft = controller.retriesLeft;
+      if (retriesLeft > 0 && correct < quizQuestions.length) {
+        const retry = h('button', 'ccp-q-submit', { type: 'button' });
+        retry.textContent = format(strings.retryQuiz, { count: retriesLeft });
+        retry.addEventListener('click', () => {
+          quizShown = null;
+          controller.retryQuiz();
+        });
+        actions.append(retry);
+      }
+      if (state.status === 'waiting') {
+        const next = h('button', 'ccp-q-continue', { type: 'button' });
+        next.textContent = strings.continue;
+        next.addEventListener('click', () => {
+          started = true;
+          controller.play();
+        });
+        actions.append(next);
+      }
+      panel.append(actions);
+      if (focus) queueMicrotask(() => heading.focus());
+    }
+    quizLayer.replaceChildren(panel);
+  }
+  let quizShown: string | null = null;
   stage.element.setAttribute('role', 'region');
   stage.element.setAttribute('aria-label', course.title);
 
@@ -146,6 +311,7 @@ export function createPlayer(
   const errorBox = h('div', 'ccp-error', { role: 'alert' });
   errorBox.textContent = strings.mediaError;
   errorBox.hidden = true;
+  stage.element.append(quizLayer);
   viewport.append(stage.element, overlay, continueButton, spinner, errorBox);
 
   const controls = h('div', 'ccp-controls', { role: 'group', 'aria-label': strings.controls });
@@ -260,7 +426,9 @@ export function createPlayer(
     }
 
     const waiting = state.status === 'waiting';
-    continueButton.hidden = !waiting;
+    continueButton.hidden = !waiting || !!chapter.quiz;
+    renderQuiz(false);
+    seek.disabled = !!chapter.quiz;
     const playIcon = playing ? 'pause' : state.status === 'ended' ? 'replay' : 'play';
     if (playButton.dataset.icon !== playIcon) {
       playButton.dataset.icon = playIcon;
@@ -326,7 +494,7 @@ export function createPlayer(
     win.setTimeout(() => (live.textContent = text), 50);
   };
 
-  const saveProgress = () => store?.save(encodeProgress(controller.progress));
+  const saveProgress = () => store?.save(encodeProgress(controller.progress, questionIds));
 
   controller.subscribe((state, events) => {
     for (const event of events) {
@@ -341,6 +509,8 @@ export function createPlayer(
         );
         saveProgress();
       } else if (event.type === 'chapterseen') {
+        saveProgress();
+      } else if (event.type === 'answer') {
         saveProgress();
       }
       emit(event);
@@ -359,6 +529,25 @@ export function createPlayer(
       if (root.contains(doc.activeElement)) continueButton.focus();
     }
     if (state.status === 'ended' && justSeen) announce(strings.courseComplete);
+    for (const event of events) {
+      if (event.type === 'answer') {
+        const entry = [...questionHosts.values()].find(
+          (q) => q.clip.question.id === event.questionId,
+        );
+        if (entry) mountQuestionClip(entry.clip, entry.host, true);
+        else renderQuiz(true);
+      } else if (event.type === 'question') {
+        announce(strings.answerToContinue);
+        const host = questionHosts.get(event.clipId)?.host;
+        queueMicrotask(() => host?.querySelector<HTMLElement>('input, select, button')?.focus());
+      } else if (event.type === 'chapterchange' && course.chapters[event.chapterIndex]!.quiz) {
+        quizShown = null;
+        renderQuiz(true);
+      }
+    }
+    if (events.some((e) => e.type === 'chapterseen') && course.chapters[state.chapterIndex]!.quiz) {
+      renderQuiz(true);
+    }
     emit({ type: 'statechange', state });
   });
 
@@ -481,6 +670,7 @@ export function createPlayer(
     course,
     element: root,
     getState: () => controller.state,
+    answer: (questionId, response) => controller.answer(questionId, response),
     play,
     pause: () => controller.pause(),
     toggle: () => {

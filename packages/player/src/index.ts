@@ -22,3 +22,6 @@ export { Stage } from './dom/stage.js';
 export type { StageOptions } from './dom/stage.js';
 export type { AssetResolver } from './dom/clips.js';
 export { injectStyles } from './dom/styles.js';
+export { answer, collectQuestions, computeScore, isCorrect, shuffled } from './core/quiz.js';
+export type { AnswerState, QuestionRef, Response, Score } from './core/quiz.js';
+export { renderQuestion } from './dom/question.js';
