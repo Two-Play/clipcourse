@@ -5,7 +5,8 @@
  * are labelled, every button has a visible label or an aria-label.
  */
 import { ChevronDown, ChevronUp, type LucideIcon } from 'lucide-react';
-import { useEffect, useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { MenuPopover, type MenuItem } from '../Popover.js';
 import { t } from '../../i18n.js';
 
 export interface RibbonTab {
@@ -160,7 +161,7 @@ export function RibbonButton({
   );
 }
 
-/** A large button that opens a menu of choices. */
+/** A button that opens a menu of choices (rendered as a floating popover). */
 export function RibbonMenu({
   icon: Icon,
   label,
@@ -170,50 +171,27 @@ export function RibbonMenu({
   icon: LucideIcon;
   label: string;
   size?: 'large' | 'small';
-  items: { label: string; onSelect: () => void; selected?: boolean; separatorBefore?: boolean }[];
+  items: MenuItem[];
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
+  const ref = useRef<HTMLButtonElement>(null);
   const menuId = useId();
-
-  useEffect(() => {
-    if (!open) return;
-    const close = (event: MouseEvent) => {
-      if (!ref.current?.contains(event.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', close);
-    return () => document.removeEventListener('mousedown', close);
-  }, [open]);
-
-  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
-    if (event.key === 'Escape' && open) {
-      event.stopPropagation();
-      setOpen(false);
-      ref.current?.querySelector<HTMLButtonElement>('.ribbon-button')?.focus();
-    }
-    if (open && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
-      event.preventDefault();
-      const items = [
-        ...(ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]') ?? []),
-      ];
-      const index = items.indexOf(document.activeElement as HTMLButtonElement);
-      const next =
-        event.key === 'ArrowDown'
-          ? (index + 1) % items.length
-          : (index - 1 + items.length) % items.length;
-      items[next]?.focus();
-    }
-  };
-
   return (
-    <div className="ribbon-menu" ref={ref} onKeyDown={onKeyDown}>
+    <>
       <button
+        ref={ref}
         type="button"
         className={`ribbon-button is-${size} has-menu`}
         aria-haspopup="menu"
         aria-expanded={open}
-        aria-controls={menuId}
+        aria-controls={open ? menuId : undefined}
         onClick={() => setOpen((o) => !o)}
+        onKeyDown={(e) => {
+          if (e.key === 'ArrowDown' && !open) {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
         title={label}
       >
         <Icon
@@ -226,26 +204,15 @@ export function RibbonMenu({
           <ChevronDown size={12} aria-hidden />
         </span>
       </button>
-      {open && (
-        <div className="ribbon-menu-popup" role="menu" id={menuId} aria-label={label}>
-          {items.map((item) => (
-            <button
-              key={item.label}
-              type="button"
-              role="menuitem"
-              className={`${item.selected ? 'is-selected' : ''}${item.separatorBefore ? ' has-separator' : ''}`}
-              autoFocus={item.selected}
-              onClick={() => {
-                setOpen(false);
-                item.onSelect();
-              }}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+      <MenuPopover
+        anchor={ref}
+        open={open}
+        onClose={() => setOpen(false)}
+        items={items}
+        label={label}
+        id={menuId}
+      />
+    </>
   );
 }
 

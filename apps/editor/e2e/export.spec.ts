@@ -57,10 +57,14 @@ async function serve(page: Page, files: Record<string, Uint8Array>) {
   });
 }
 
-/** Freezes the page clock shortly after its current time. */
+/**
+ * Freezes the page clock. Call it while nothing is playing: the clock jumps
+ * ahead by a safe margin (so a busy machine cannot make the target lie in
+ * the past) and from then on only runFor() advances it.
+ */
 async function freeze(page: Page) {
   const now = await page.evaluate(() => Date.now());
-  await page.clock.pauseAt(now + 50);
+  await page.clock.pauseAt(now + 1000);
 }
 
 const lmsValue = (page: Page, key: string) =>
@@ -79,8 +83,9 @@ for (const version of ['1.2', '2004'] as const) {
     await page.clock.install();
     await page.goto(`/lms-harness.html?version=${version}`);
     const course = page.frameLocator('#sco');
-    await course.getByRole('button', { name: 'Start' }).click();
+    await expect(course.getByRole('button', { name: 'Start' })).toBeVisible();
     await freeze(page);
+    await course.getByRole('button', { name: 'Start' }).click();
     // Media from the package loads through relative URLs.
     await expect
       .poll(() =>
@@ -107,8 +112,8 @@ for (const version of ['1.2', '2004'] as const) {
       ),
     ).toBe('resume');
 
-    await resumed.getByRole('button', { name: 'Resume' }).click();
     await freeze(page);
+    await resumed.getByRole('button', { name: 'Resume' }).click();
     await page.clock.runFor(2500);
     await expect.poll(() => lmsValue(page, status)).toBe('completed');
   });

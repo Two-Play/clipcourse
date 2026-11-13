@@ -50,6 +50,7 @@ import { clipLabel, displayTracks, formatTimecode, msToPx, pxToMs } from '../geo
 import { t } from '../i18n.js';
 
 export const HEADER_WIDTH = 190;
+const RULER_HEIGHT = 26;
 const EDGE_PX = 7;
 const SNAP_PX = 8;
 const DRAG_THRESHOLD_PX = 3;
@@ -108,6 +109,25 @@ export function Timeline() {
     const visible = el.clientWidth - HEADER_WIDTH;
     if (x < el.scrollLeft || x > el.scrollLeft + visible - 40) el.scrollLeft = Math.max(0, x - 40);
   }, [playhead, playing, zoom]);
+
+  // Keep the selected clip in view (e.g. when it was picked on the stage),
+  // taking the sticky track headers and ruler into account.
+  const primary = selection[0];
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || !primary) return;
+    const clipEl = el.querySelector<HTMLElement>(`.tl-clip[data-clip-id="${CSS.escape(primary)}"]`);
+    if (!clipEl) return;
+    const box = el.getBoundingClientRect();
+    const rect = clipEl.getBoundingClientRect();
+    const left = box.left + HEADER_WIDTH;
+    const top = box.top + RULER_HEIGHT;
+    if (rect.right > box.right - 16)
+      el.scrollLeft += Math.min(rect.right - box.right + 40, rect.left - left - 16);
+    else if (rect.left < left) el.scrollLeft -= left - rect.left + 40;
+    if (rect.bottom > box.bottom) el.scrollTop += rect.bottom - box.bottom + 8;
+    else if (rect.top < top) el.scrollTop -= top - rect.top + 8;
+  }, [primary]);
 
   /** Converts a client x coordinate to chapter time. */
   const timeAt = (clientX: number) => {
@@ -586,38 +606,40 @@ function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & {
         >
           {track.muted ? <VolumeX size={14} aria-hidden /> : <Volume2 size={14} aria-hidden />}
         </button>
-        <button
-          type="button"
-          aria-label={t('moveTrackUp')}
-          title={t('moveTrackUp')}
-          disabled={index >= count - 1}
-          onClick={() => exec('Move track', moveTrack(track.id, index + 1))}
-        >
-          <ArrowUp size={14} aria-hidden />
-        </button>
-        <button
-          type="button"
-          aria-label={t('moveTrackDown')}
-          title={t('moveTrackDown')}
-          disabled={index <= 0}
-          onClick={() => exec('Move track', moveTrack(track.id, index - 1))}
-        >
-          <ArrowDown size={14} aria-hidden />
-        </button>
-        <button
-          type="button"
-          aria-label={t('deleteTrack')}
-          title={t('deleteTrack')}
-          disabled={scope === 'chapter' && count <= 1}
-          onClick={() =>
-            exec('Delete track', (draft) => {
-              removeTrack(track.id)(draft);
-              pruneCourseLayer()(draft);
-            })
-          }
-        >
-          <Trash2 size={14} aria-hidden />
-        </button>
+        <span className="tl-track-more">
+          <button
+            type="button"
+            aria-label={t('moveTrackUp')}
+            title={t('moveTrackUp')}
+            disabled={index >= count - 1}
+            onClick={() => exec('Move track', moveTrack(track.id, index + 1))}
+          >
+            <ArrowUp size={14} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={t('moveTrackDown')}
+            title={t('moveTrackDown')}
+            disabled={index <= 0}
+            onClick={() => exec('Move track', moveTrack(track.id, index - 1))}
+          >
+            <ArrowDown size={14} aria-hidden />
+          </button>
+          <button
+            type="button"
+            aria-label={t('deleteTrack')}
+            title={t('deleteTrack')}
+            disabled={scope === 'chapter' && count <= 1}
+            onClick={() =>
+              exec('Delete track', (draft) => {
+                removeTrack(track.id)(draft);
+                pruneCourseLayer()(draft);
+              })
+            }
+          >
+            <Trash2 size={14} aria-hidden />
+          </button>
+        </span>
       </div>
     </div>
   );
