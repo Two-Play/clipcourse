@@ -233,7 +233,7 @@ test.describe('media and files', () => {
     const before = (await editorState(page)).course;
 
     const download = page.waitForEvent('download');
-    await page.getByRole('button', { name: /^Save/ }).click();
+    await page.getByRole('button', { name: /^Save( •)?$/ }).click();
     const file = await (await download).path();
     expect(file).toBeTruthy();
 

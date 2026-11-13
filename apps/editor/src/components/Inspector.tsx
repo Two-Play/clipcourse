@@ -14,7 +14,15 @@ import {
   setCourseProps,
   updateClip,
 } from '@clipcourse/editor-core';
-import type { Clip, TextStyle } from '@clipcourse/format';
+import type {
+  Animation,
+  AnimationType,
+  Clip,
+  HighlightKind,
+  SlideDirection,
+  TextStyle,
+  VisualClip,
+} from '@clipcourse/format';
 import { useId, useState, type ReactNode } from 'react';
 import { useEditor, useSession } from '../context.js';
 import { t } from '../i18n.js';
@@ -349,6 +357,89 @@ function ClipInspector({ clip }: { clip: Clip }) {
         </fieldset>
       )}
 
+      {clip.type === 'highlight' && (
+        <fieldset>
+          <legend>{t('highlight')}</legend>
+          <SelectField<HighlightKind>
+            label={t('highlightKind')}
+            value={clip.kind}
+            options={[
+              { value: 'frame', label: t('highlightFrame') },
+              { value: 'marker', label: t('highlightMarker') },
+              { value: 'arrow', label: t('highlightArrow') },
+              { value: 'spotlight', label: t('highlightSpotlight') },
+            ]}
+            onChange={(v) => edit('kind', (c) => void (c.type === 'highlight' && (c.kind = v)))}
+          />
+          {clip.kind !== 'spotlight' && (
+            <ColorField
+              label={t('color')}
+              value={clip.color ?? (clip.kind === 'marker' ? '#ffdd00' : '#ff5d73')}
+              onChange={(v) => edit('color', (c) => void (c.type === 'highlight' && (c.color = v)))}
+            />
+          )}
+          {(clip.kind === 'frame' || clip.kind === 'arrow') && (
+            <NumberField
+              label={t('strokeWidth')}
+              min={1}
+              max={100}
+              value={clip.strokeWidth ?? 8}
+              onCommit={(v) =>
+                edit('strokeWidth', (c) => void (c.type === 'highlight' && (c.strokeWidth = v)))
+              }
+            />
+          )}
+          <CheckField
+            label={t('pulse')}
+            checked={clip.pulse === true}
+            onChange={(v) =>
+              edit('pulse', (c) => {
+                if (c.type !== 'highlight') return;
+                if (v) c.pulse = true;
+                else delete c.pulse;
+              })
+            }
+          />
+          <TextField
+            label={t('screenReaderLabel')}
+            value={clip.label ?? ''}
+            onChange={(v) =>
+              edit('label', (c) => {
+                if (c.type !== 'highlight') return;
+                if (v) c.label = v;
+                else delete c.label;
+              })
+            }
+          />
+        </fieldset>
+      )}
+
+      {clip.type === 'progress' && (
+        <fieldset>
+          <legend>{t('clipLabelProgress')}</legend>
+          <ColorField
+            label={t('progressFill')}
+            value={clip.fill ?? '#4f8cff'}
+            onChange={(v) => edit('fill', (c) => void (c.type === 'progress' && (c.fill = v)))}
+          />
+          <ColorField
+            label={t('progressBackground')}
+            value={clip.background ?? '#555555'}
+            onChange={(v) =>
+              edit('background', (c) => void (c.type === 'progress' && (c.background = v)))
+            }
+          />
+        </fieldset>
+      )}
+
+      {clip.type !== 'audio' && (
+        <fieldset>
+          <legend>{t('animation')}</legend>
+          <AnimationFields clip={clip} phase="in" label={t('animationIn')} edit={edit} />
+          <AnimationFields clip={clip} phase="out" label={t('animationOut')} edit={edit} />
+        </fieldset>
+      )}
+
       {clip.type !== 'audio' && (
         <details className="advanced">
           <summary>{t('advanced')}</summary>
@@ -557,5 +648,93 @@ function LanguageField({ value, onCommit }: { value: string; onCommit: (v: strin
         />
       )}
     </Field>
+  );
+}
+
+function CheckField(props: { label: string; checked: boolean; onChange: (v: boolean) => void }) {
+  const id = useId();
+  return (
+    <div className="field field-check">
+      <input
+        id={id}
+        type="checkbox"
+        checked={props.checked}
+        onChange={(e) => props.onChange(e.target.checked)}
+      />
+      <label htmlFor={id}>{props.label}</label>
+    </div>
+  );
+}
+
+const DEFAULT_ANIMATION_MS = 500;
+
+/** Entrance or exit animation: type, then duration and direction when set. */
+function AnimationFields({
+  clip,
+  phase,
+  label,
+  edit,
+}: {
+  clip: VisualClip;
+  phase: 'in' | 'out';
+  label: string;
+  edit: (field: string, update: (c: Clip) => void) => void;
+}) {
+  const current = clip.animations?.[phase];
+  const set = (field: string, next: Animation | null) =>
+    edit(`anim.${phase}.${field}`, (c) => {
+      if (c.type === 'audio') return;
+      const animations = { ...c.animations };
+      if (next) animations[phase] = next;
+      else delete animations[phase];
+      if (animations.in || animations.out) c.animations = animations;
+      else delete c.animations;
+    });
+  return (
+    <div className="anim-group" data-phase={phase}>
+      <SelectField<AnimationType | 'none'>
+        label={label}
+        value={current?.type ?? 'none'}
+        options={[
+          { value: 'none', label: t('animationNone') },
+          { value: 'fade', label: t('animationFade') },
+          { value: 'slide', label: t('animationSlide') },
+          { value: 'zoom', label: t('animationZoom') },
+        ]}
+        onChange={(type) =>
+          set(
+            'type',
+            type === 'none'
+              ? null
+              : {
+                  ...current,
+                  type,
+                  duration: current?.duration ?? DEFAULT_ANIMATION_MS,
+                  ...(type === 'slide' && !current?.direction
+                    ? { direction: phase === 'in' ? 'left' : 'right' }
+                    : {}),
+                },
+          )
+        }
+      />
+      {current && (
+        <NumberField
+          label={`${label}: ${t('duration')}`}
+          seconds
+          min={0.05}
+          max={60}
+          value={current.duration}
+          onCommit={(v) => set('duration', { ...current, duration: Math.max(1, v) })}
+        />
+      )}
+      {current?.type === 'slide' && (
+        <SelectField<SlideDirection>
+          label={`${label}: ${t('direction')}`}
+          value={current.direction ?? 'left'}
+          options={(['left', 'right', 'up', 'down'] as const).map((v) => ({ value: v, label: v }))}
+          onChange={(direction) => set('direction', { ...current, direction })}
+        />
+      )}
+    </div>
   );
 }

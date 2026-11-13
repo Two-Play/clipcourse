@@ -5,7 +5,12 @@
  * step and Escape cancels it.
  */
 import {
+  addCourseTrack,
+  addMarker,
   addTrack,
+  pruneCourseLayer,
+  removeMarker,
+  updateMarker,
   gridStep,
   moveClip,
   moveTrack,
@@ -19,7 +24,7 @@ import {
   updateTrack,
   type Recipe,
 } from '@clipcourse/editor-core';
-import type { Clip, Track } from '@clipcourse/format';
+import type { Clip, Marker, Track } from '@clipcourse/format';
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { addAssetClip, splitSelectionAtPlayhead } from '../actions.js';
 import { useEditor, useSession } from '../context.js';
@@ -53,7 +58,28 @@ export function Timeline() {
     0,
   );
   const width = msToPx(Math.max(chapter.duration, contentEnd) + 10000, zoom);
-  const tracks = displayTracks(chapter);
+  const courseLayer = course.courseLayer;
+  const rows: TrackRow[] = [
+    ...[...(courseLayer?.foreground ?? [])].reverse().map((track, i, all) => ({
+      track,
+      scope: 'course' as const,
+      index: all.length - 1 - i,
+      count: all.length,
+    })),
+    ...displayTracks(chapter).map((track, displayIndex) => ({
+      track,
+      scope: 'chapter' as const,
+      index: chapter.tracks.length - 1 - displayIndex,
+      count: chapter.tracks.length,
+    })),
+    ...[...(courseLayer?.background ?? [])].reverse().map((track, i, all) => ({
+      track,
+      scope: 'course' as const,
+      index: all.length - 1 - i,
+      count: all.length,
+    })),
+  ];
+  const visibleEndMs = pxToMs(width, zoom);
   const step = gridStep(zoom);
 
   // Keep the playhead in view while playing.
@@ -72,10 +98,11 @@ export function Timeline() {
     return Math.max(0, pxToMs(clientX - rect.left - HEADER_WIDTH + el.scrollLeft, zoom));
   };
 
-  const trackAt = (clientX: number, clientY: number): string | null => {
+  /** The track under the pointer, if it is in the given scope. */
+  const trackAt = (clientX: number, clientY: number, scope: TrackRow['scope']): string | null => {
     for (const el of document.elementsFromPoint(clientX, clientY)) {
-      const id = (el as HTMLElement).dataset?.laneTrackId;
-      if (id) return id;
+      const data = (el as HTMLElement).dataset;
+      if (data?.laneTrackId) return data.laneScope === scope ? data.laneTrackId : null;
     }
     return null;
   };
@@ -104,7 +131,11 @@ export function Timeline() {
   };
 
   // --- Clip drags --------------------------------------------------------------
-  const onClipPointerDown = (event: PointerEvent<HTMLElement>, clip: Clip) => {
+  const onClipPointerDown = (
+    event: PointerEvent<HTMLElement>,
+    clip: Clip,
+    scope: TrackRow['scope'],
+  ) => {
     if (event.button !== 0) return;
     event.stopPropagation();
     const state = store.getState();
@@ -145,7 +176,7 @@ export function Timeline() {
         let start = Math.max(0, clip.start + delta);
         let target: number | null = null;
         if (snap) ({ time: start, target } = snapBlock(start, clip.duration, points, threshold));
-        const trackId = trackAt(e.clientX, e.clientY) ?? undefined;
+        const trackId = trackAt(e.clientX, e.clientY, scope) ?? undefined;
         store.getState().preview(moveClip(clip.id, start, trackId));
         setSnapLine(target);
       } else {
@@ -301,6 +332,35 @@ export function Timeline() {
         <button type="button" onClick={addTrackOnTop}>
           {t('addTrack')}
         </button>
+        <button
+          type="button"
+          onClick={() =>
+            store.getState().execute(
+              'Add track for all chapters',
+              addCourseTrack('foreground', {
+                id: session.newId('track'),
+                name: t('allChapters'),
+              }),
+            )
+          }
+        >
+          {t('addCourseTrack')}
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            const id = session.newId('marker');
+            const n = (chapter.markers?.length ?? 0) + 1;
+            store
+              .getState()
+              .execute(
+                'Add marker',
+                addMarker(chapter.id, { id, time: playhead, title: `${t('marker')} ${n}` }),
+              );
+          }}
+        >
+          {t('addMarker')}
+        </button>
         <label className="tl-check">
           <input
             type="checkbox"
@@ -336,46 +396,54 @@ export function Timeline() {
                   {formatTimecode(ms).replace(/\.0$/, '')}
                 </span>
               ))}
+              {(chapter.markers ?? []).map((marker) => (
+                <MarkerFlag
+                  key={marker.id}
+                  marker={marker}
+                  chapterId={chapter.id}
+                  timeAt={timeAt}
+                />
+              ))}
             </div>
           </div>
 
-          {tracks.map((track, displayIndex) => (
-            <div className="tl-row" key={track.id}>
-              <TrackHeader
-                track={track}
-                index={chapter.tracks.length - 1 - displayIndex}
-                count={chapter.tracks.length}
-              />
+          {rows.map(({ track, scope, index, count }) => (
+            <div className={`tl-row${scope === 'course' ? ' is-course' : ''}`} key={track.id}>
+              <TrackHeader track={track} index={index} count={count} scope={scope} />
               <div
                 className={`tl-lane${dropTarget === track.id ? ' is-drop' : ''}${track.hidden ? ' is-hidden' : ''}`}
                 data-lane-track-id={track.id}
+                data-lane-scope={scope}
                 onPointerDown={onLanePointerDown}
                 onDragOver={(e) => onDragOver(e, track.id)}
                 onDragLeave={() => setDropTarget(null)}
                 onDrop={(e) => onDrop(e, track.id)}
               >
-                {track.clips.map((clip) => (
-                  <div
-                    key={clip.id}
-                    role="button"
-                    tabIndex={0}
-                    className={`tl-clip tl-clip-${clip.type}${selection.includes(clip.id) ? ' is-selected' : ''}`}
-                    style={{
-                      left: msToPx(clip.start, zoom),
-                      width: Math.max(4, msToPx(clip.duration, zoom)),
-                    }}
-                    data-clip-id={clip.id}
-                    aria-pressed={selection.includes(clip.id)}
-                    aria-label={`${clipLabel(clip, course)}, ${formatTimecode(clip.start)} – ${formatTimecode(clip.start + clip.duration)}`}
-                    title={clipLabel(clip, course)}
-                    onPointerDown={(e) => onClipPointerDown(e, clip)}
-                    onKeyDown={(e) => onClipKeyDown(e, clip)}
-                  >
-                    <span className="tl-clip-handle tl-clip-handle-start" aria-hidden="true" />
-                    <span className="tl-clip-label">{clipLabel(clip, course)}</span>
-                    <span className="tl-clip-handle tl-clip-handle-end" aria-hidden="true" />
-                  </div>
-                ))}
+                {track.clips.map((clip) => {
+                  const end = Math.min(clip.start + clip.duration, visibleEndMs);
+                  return (
+                    <div
+                      key={clip.id}
+                      role="button"
+                      tabIndex={0}
+                      className={`tl-clip tl-clip-${clip.type}${selection.includes(clip.id) ? ' is-selected' : ''}${end < clip.start + clip.duration ? ' is-open-ended' : ''}`}
+                      style={{
+                        left: msToPx(clip.start, zoom),
+                        width: Math.max(4, msToPx(end - clip.start, zoom)),
+                      }}
+                      data-clip-id={clip.id}
+                      aria-pressed={selection.includes(clip.id)}
+                      aria-label={`${clipLabel(clip, course)}, ${formatTimecode(clip.start)} – ${formatTimecode(clip.start + clip.duration)}${scope === 'course' ? `, ${t('allChapters')}` : ''}`}
+                      title={clipLabel(clip, course)}
+                      onPointerDown={(e) => onClipPointerDown(e, clip, scope)}
+                      onKeyDown={(e) => onClipKeyDown(e, clip)}
+                    >
+                      <span className="tl-clip-handle tl-clip-handle-start" aria-hidden="true" />
+                      <span className="tl-clip-label">{clipLabel(clip, course)}</span>
+                      <span className="tl-clip-handle tl-clip-handle-end" aria-hidden="true" />
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
@@ -426,7 +494,14 @@ function TransportButton() {
   );
 }
 
-function TrackHeader({ track, index, count }: { track: Track; index: number; count: number }) {
+interface TrackRow {
+  track: Track;
+  scope: 'chapter' | 'course';
+  index: number;
+  count: number;
+}
+
+function TrackHeader({ track, index, count, scope }: Omit<TrackRow, 'track'> & { track: Track }) {
   const { store } = useSession();
   const [editing, setEditing] = useState(false);
   const name = track.name ?? 'Track';
@@ -460,6 +535,11 @@ function TrackHeader({ track, index, count }: { track: Track; index: number; cou
         >
           {name}
         </button>
+      )}
+      {scope === 'course' && (
+        <span className="tl-badge" title={t('allChapters')} aria-label={t('allChapters')}>
+          ∀
+        </span>
       )}
       <div className="tl-track-buttons">
         <button
@@ -504,12 +584,98 @@ function TrackHeader({ track, index, count }: { track: Track; index: number; cou
           type="button"
           aria-label={t('deleteTrack')}
           title={t('deleteTrack')}
-          disabled={count <= 1}
-          onClick={() => exec('Delete track', removeTrack(track.id))}
+          disabled={scope === 'chapter' && count <= 1}
+          onClick={() =>
+            exec('Delete track', (draft) => {
+              removeTrack(track.id)(draft);
+              pruneCourseLayer()(draft);
+            })
+          }
         >
           ✕
         </button>
       </div>
     </div>
+  );
+}
+
+/** A marker flag on the ruler: drag to move, double-click to rename, Delete to remove. */
+function MarkerFlag({
+  marker,
+  chapterId,
+  timeAt,
+}: {
+  marker: Marker;
+  chapterId: string;
+  timeAt: (clientX: number) => number;
+}) {
+  const { store } = useSession();
+  const zoom = useEditor((s) => s.zoom);
+
+  const onPointerDown = (event: PointerEvent<HTMLButtonElement>) => {
+    if (event.button !== 0) return;
+    event.stopPropagation();
+    const originX = event.clientX;
+    let started = false;
+    const move = (e: globalThis.PointerEvent) => {
+      if (!started) {
+        if (Math.abs(e.clientX - originX) < DRAG_THRESHOLD_PX) return;
+        started = true;
+        store.getState().begin('Move marker');
+      }
+      store.getState().preview(updateMarker(chapterId, marker.id, { time: timeAt(e.clientX) }));
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      if (started) store.getState().commit();
+      else store.getState().setPlayhead(marker.time);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  const rename = () => {
+    const title = window.prompt(t('markerTitle'), marker.title)?.trim();
+    if (title)
+      store.getState().execute('Rename marker', updateMarker(chapterId, marker.id, { title }));
+  };
+
+  return (
+    <button
+      type="button"
+      className="tl-marker"
+      style={{ left: msToPx(marker.time, zoom) }}
+      title={`${marker.title} (${formatTimecode(marker.time)})`}
+      aria-label={`${t('marker')}: ${marker.title}, ${formatTimecode(marker.time)}`}
+      data-marker-id={marker.id}
+      onPointerDown={onPointerDown}
+      onDoubleClick={rename}
+      onKeyDown={(e) => {
+        if (e.key === 'Delete' || e.key === 'Backspace') {
+          e.preventDefault();
+          e.stopPropagation();
+          store.getState().execute('Delete marker', removeMarker(chapterId, marker.id));
+        } else if (e.key === 'Enter' || e.key === 'F2') {
+          e.preventDefault();
+          rename();
+        } else if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+          e.preventDefault();
+          e.stopPropagation();
+          const step = (e.shiftKey ? 1000 : 100) * (e.key === 'ArrowLeft' ? -1 : 1);
+          store
+            .getState()
+            .execute(
+              'Move marker',
+              updateMarker(chapterId, marker.id, { time: marker.time + step }),
+              {
+                mergeKey: `marker:${marker.id}`,
+              },
+            );
+        }
+      }}
+    >
+      <span className="tl-marker-label">{marker.title}</span>
+    </button>
   );
 }

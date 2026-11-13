@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: AGPL-3.0-only
 import { useState } from 'react';
 import { AssetPanel } from './components/AssetPanel.js';
+import { ChapterPanel } from './components/ChapterPanel.js';
 import { Inspector } from './components/Inspector.js';
 import { PreviewDialog } from './components/PreviewDialog.js';
 import { StageView } from './components/StageView.js';
@@ -42,7 +43,10 @@ export function App({ session, notice }: { session: EditorSession; notice?: stri
           </div>
         )}
         <main className="workspace">
-          <AssetPanel />
+          <div className="sidebar">
+            <ChapterPanel onMessage={setMessage} />
+            <AssetPanel />
+          </div>
           <section className="stage-area" aria-label={t('stage')}>
             <StageView />
           </section>

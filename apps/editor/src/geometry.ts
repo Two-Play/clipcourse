@@ -19,6 +19,8 @@ const LABEL_KEYS: Record<Clip['type'], MessageKey> = {
   shape: 'clipLabelShape',
   box: 'clipLabelBox',
   text: 'clipLabelText',
+  highlight: 'clipLabelHighlight',
+  progress: 'clipLabelProgress',
 };
 
 /** Short human label for a clip on the timeline. */
@@ -31,6 +33,7 @@ export function clipLabel(clip: Clip, course: Course): string {
     return `${kind}: ${src.split('/').pop()}`;
   }
   if (clip.type === 'shape') return `${kind}: ${clip.shape}`;
+  if (clip.type === 'highlight') return `${kind}: ${clip.label || clip.kind}`;
   return kind;
 }
 

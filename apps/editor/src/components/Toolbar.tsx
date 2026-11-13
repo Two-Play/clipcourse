@@ -7,7 +7,7 @@ import {
   selectDirty,
   type Project,
 } from '@clipcourse/editor-core';
-import { addClipAt } from '../actions.js';
+import { addClipAt, addProgressBar } from '../actions.js';
 import { useEditor, useSession } from '../context.js';
 import { loadExample } from '../examples.js';
 import { t } from '../i18n.js';
@@ -26,8 +26,6 @@ export function Toolbar({
   const canRedo = useEditor(selectCanRedo);
   const dirty = useEditor(selectDirty);
   const title = useEditor((s) => s.course.title);
-  const chapters = useEditor((s) => s.course.chapters);
-  const chapterId = useEditor((s) => s.chapterId);
 
   const confirmDiscard = () => !dirty || window.confirm(t('confirmDiscard'));
 
@@ -138,20 +136,16 @@ export function Toolbar({
         <button type="button" onClick={() => addClipAt(session, 'shape')}>
           ＋ {t('addShape')}
         </button>
+        <button type="button" onClick={() => addClipAt(session, 'highlight')}>
+          ＋ {t('addHighlight')}
+        </button>
+        <button type="button" onClick={() => addProgressBar(session)}>
+          ＋ {t('addProgress')}
+        </button>
         <button type="button" onClick={importMedia}>
           {t('importMedia')}
         </button>
       </div>
-      <label className="chapter-select">
-        {t('chapter')}
-        <select value={chapterId} onChange={(e) => store.getState().setChapter(e.target.value)}>
-          {chapters.map((c, i) => (
-            <option key={c.id} value={c.id}>
-              {i + 1}. {c.title}
-            </option>
-          ))}
-        </select>
-      </label>
       <button type="button" className="primary" onClick={onPreview}>
         ▶ {t('preview')}
       </button>
