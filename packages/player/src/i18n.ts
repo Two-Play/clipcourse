@@ -46,6 +46,9 @@ export const defaultStrings = {
   closeContents: 'Close contents',
   completed: 'completed',
   current: 'current',
+  close: 'Close',
+  glossary: 'Glossary',
+  newWindow: 'opens in a new window',
 };
 
 export type PlayerStrings = typeof defaultStrings;

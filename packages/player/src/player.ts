@@ -7,9 +7,12 @@ import {
   FORMAT_VERSION,
   type Asset,
   type Course,
+  type GlossaryEntry,
   type Question,
   type QuestionClip,
+  type VisualClip,
 } from '@clipcourse/format';
+import { visibilityTargets } from './core/interactions.js';
 import { createAnimationFrameClock, type Clock } from './clock.js';
 import { Controller, type ControllerEvent, type PlayerState } from './core/controller.js';
 import { evaluate } from './core/evaluate.js';
@@ -95,7 +98,22 @@ export function createPlayer(
   injectStyles(doc);
 
   const questionIds = collectQuestions(course).map((ref) => ref.question.id);
-  const restored = decodeProgress(store?.load(), course.chapters.length, questionIds);
+  const clipsById = new Map<string, VisualClip>();
+  for (const track of [
+    ...(course.courseLayer?.background ?? []),
+    ...(course.courseLayer?.foreground ?? []),
+    ...course.chapters.flatMap((c) => c.tracks),
+  ]) {
+    for (const clip of track.clips) if (clip.type !== 'audio') clipsById.set(clip.id, clip);
+  }
+  const progressLayout = {
+    questionIds,
+    visibilityTargets: visibilityTargets(course).map((id) => ({
+      id,
+      shown: clipsById.get(id)?.startsHidden !== true,
+    })),
+  };
+  const restored = decodeProgress(store?.load(), course.chapters.length, progressLayout);
   const controller = new Controller(course, restored);
   /** Question clip hosts currently on the stage, to re-render after answers. */
   const questionHosts = new Map<string, { clip: QuestionClip; host: HTMLElement }>();
@@ -149,6 +167,116 @@ export function createPlayer(
       questionHosts.set(clip.id, { clip, host });
       mountQuestionClip(clip, host, false);
     },
+    onAction: (clip, trigger) => runAction(clip, trigger),
+    onTerm: (entry, trigger) => openGlossaryEntry(entry, trigger),
+  });
+
+  // --- Click actions and popups --------------------------------------------------
+  function runAction(clip: VisualClip, trigger: HTMLElement) {
+    const action = clip.action;
+    if (!action) return;
+    started = true;
+    if (action.type === 'openPopup') {
+      const popup = course.popups?.find((p) => p.id === action.popupId);
+      if (popup) {
+        const asset = popup.assetId ? course.assets[popup.assetId] : undefined;
+        openDialog({
+          title: popup.title,
+          text: popup.text,
+          trigger,
+          ...(asset && popup.assetId
+            ? {
+                image: {
+                  src: resolveAsset(asset, popup.assetId),
+                  alt: popup.alt ?? asset.alt ?? '',
+                },
+              }
+            : {}),
+        });
+      }
+    } else if (action.type === 'openUrl') {
+      win.open(action.url, '_blank', 'noopener,noreferrer');
+    } else {
+      controller.runAction(action);
+    }
+  }
+
+  function openGlossaryEntry(entry: GlossaryEntry, trigger: HTMLElement) {
+    openDialog({ title: entry.term, text: entry.definition, trigger });
+  }
+
+  const dialog = h('div', 'ccp-dialog');
+  dialog.hidden = true;
+  let dialogReturn: { trigger: HTMLElement; resume: boolean } | null = null;
+
+  /** A modal info window: focus stays inside, Escape closes, focus returns. */
+  function openDialog(options: {
+    title: string;
+    text: string;
+    trigger: HTMLElement;
+    image?: { src: string; alt: string };
+  }) {
+    const resume = controller.state.status === 'playing';
+    controller.pause();
+    const titleId = `ccp-dlg-${Math.random().toString(36).slice(2, 8)}`;
+    const panel = h('div', 'ccp-dialog-panel', {
+      role: 'dialog',
+      'aria-modal': 'true',
+      'aria-labelledby': titleId,
+    });
+    const heading = h('h2', 'ccp-dialog-title', { id: titleId });
+    heading.textContent = options.title;
+    const close = button('ccp-btn ccp-dialog-close', strings.close, ICONS.close);
+    const head = h('div', 'ccp-dialog-head');
+    head.append(heading, close);
+    panel.append(head);
+    if (options.image) {
+      const img = h('img', 'ccp-dialog-image');
+      img.src = options.image.src;
+      img.alt = options.image.alt;
+      panel.append(img);
+    }
+    const body = h('p', 'ccp-dialog-text');
+    body.textContent = options.text;
+    panel.append(body);
+    close.addEventListener('click', closeDialog);
+    dialog.replaceChildren(panel);
+    dialog.hidden = false;
+    dialogReturn = { trigger: options.trigger, resume };
+    close.focus();
+  }
+
+  function closeDialog() {
+    if (dialog.hidden) return;
+    dialog.hidden = true;
+    dialog.replaceChildren();
+    const ret = dialogReturn;
+    dialogReturn = null;
+    if (ret?.resume) controller.play();
+    // The trigger may be gone (other chapter); fall back to the player.
+    (ret && ret.trigger.isConnected ? ret.trigger : root).focus();
+  }
+
+  dialog.addEventListener('keydown', (event) => {
+    event.stopPropagation();
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      closeDialog();
+    } else if (event.key === 'Tab') {
+      const focusable = [...dialog.querySelectorAll<HTMLElement>('button, [href], [tabindex]')];
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && doc.activeElement === first) {
+        event.preventDefault();
+        last?.focus();
+      } else if (!event.shiftKey && doc.activeElement === last) {
+        event.preventDefault();
+        first?.focus();
+      }
+    }
+  });
+  dialog.addEventListener('click', (event) => {
+    if (event.target === dialog) closeDialog();
   });
 
   function mountQuestionClip(clip: QuestionClip, host: HTMLElement, focusFeedback: boolean) {
@@ -312,7 +440,7 @@ export function createPlayer(
   errorBox.textContent = strings.mediaError;
   errorBox.hidden = true;
   stage.element.append(quizLayer);
-  viewport.append(stage.element, overlay, continueButton, spinner, errorBox);
+  viewport.append(stage.element, overlay, continueButton, spinner, errorBox, dialog);
 
   const controls = h('div', 'ccp-controls', { role: 'group', 'aria-label': strings.controls });
   const prevButton = button('ccp-btn ccp-prev', strings.previousChapter, ICONS.previous);
@@ -375,9 +503,26 @@ export function createPlayer(
     tocItems.push({ button: item, state });
   });
   toc.append(tocHead, tocList);
+  if (course.glossary?.length) {
+    const glossaryTitle = h('h3', 'ccp-toc-glossary-title');
+    glossaryTitle.textContent = strings.glossary;
+    const list = h('dl', 'ccp-toc-glossary');
+    for (const entry of [...course.glossary].sort((a, b) =>
+      a.term.localeCompare(b.term, course.language),
+    )) {
+      const dt = h('dt', '');
+      dt.textContent = entry.term;
+      const dd = h('dd', '');
+      dd.textContent = entry.definition;
+      list.append(dt, dd);
+    }
+    toc.append(glossaryTitle, list);
+  }
   const hasToc =
     options.toc !== false &&
-    (course.chapters.length > 1 || course.chapters.some((c) => (c.markers?.length ?? 0) > 0));
+    (course.chapters.length > 1 ||
+      course.chapters.some((c) => (c.markers?.length ?? 0) > 0) ||
+      (course.glossary?.length ?? 0) > 0);
   tocButton.hidden = !hasToc;
   const reducedMotion =
     options.reducedMotion ??
@@ -411,7 +556,13 @@ export function createPlayer(
     const chapter = course.chapters[state.chapterIndex]!;
     const playing = state.status === 'playing';
 
-    stage.render(evaluate(course, state.chapterIndex, state.time, { reducedMotion }), playing);
+    stage.render(
+      evaluate(course, state.chapterIndex, state.time, {
+        reducedMotion,
+        visibility: state.visibility,
+      }),
+      playing,
+    );
     spinner.hidden = !(playing && stage.isStalled);
 
     // Questions and quizzes take input directly; the start button would only block them.
@@ -495,7 +646,7 @@ export function createPlayer(
     win.setTimeout(() => (live.textContent = text), 50);
   };
 
-  const saveProgress = () => store?.save(encodeProgress(controller.progress, questionIds));
+  const saveProgress = () => store?.save(encodeProgress(controller.progress, progressLayout));
 
   controller.subscribe((state, events) => {
     for (const event of events) {

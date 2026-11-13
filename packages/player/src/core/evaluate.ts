@@ -8,6 +8,7 @@
  */
 import type { Chapter, Clip, Course, Track } from '@clipcourse/format';
 import { animationState, IDENTITY, type AnimationState } from './animation.js';
+import { isClipShown } from './interactions.js';
 
 export type LayerName = 'background' | 'chapter' | 'foreground';
 
@@ -39,6 +40,8 @@ export interface SceneState {
 export interface EvaluateOptions {
   /** Replace slide and zoom by fades and disable pulsing. */
   reducedMotion?: boolean;
+  /** Clip visibility changed by the learner (setClipVisibility actions). */
+  visibility?: Readonly<Record<string, boolean>>;
 }
 
 /** Clamps a time to the chapter's timeline and rounds to whole ms. */
@@ -110,6 +113,7 @@ export function evaluate(
       z += 1;
       if (track.hidden) continue;
       if (!isClipActive(clip, t, chapter.duration)) continue;
+      if (!isClipShown(clip, options.visibility ?? {})) continue;
       const localTime = Math.min(t - clip.start, clip.duration);
       const mediaTime =
         clip.type === 'video' || clip.type === 'audio' ? (clip.trimStart ?? 0) + localTime : null;
