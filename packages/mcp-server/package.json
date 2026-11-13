@@ -23,9 +23,11 @@
     "@clipcourse/format": "workspace:*",
     "@clipcourse/scorm-runtime": "workspace:*",
     "@modelcontextprotocol/sdk": "1.32.2",
+    "ws": "8.23.0",
     "zod": "4.6.7"
   },
   "devDependencies": {
+    "@types/ws": "8.18.2",
     "fflate": "0.8.3"
   }
 }

@@ -10,3 +10,4 @@ export * from './templates.js';
 export * from './operations.js';
 export * from './review.js';
 export * from './describe.js';
+export * from './bridge-protocol.js';
